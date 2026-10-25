@@ -1,1 +1,6 @@
+# SQLite third-party implementation
+backend/sqlite3.c linguist-vendored
+backend/sqlite3.h linguist-vendored
 
+# Generated CMake build files
+backend/build/** linguist-generated
