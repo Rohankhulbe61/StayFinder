@@ -108,9 +108,3 @@ StayFinder/
 - `GET /api/bookings/:id` — Single reservation detail.
 - `POST /api/bookings/:id/cancel` — Cancel a confirmed booking, immediately unlocking dates.
 
----
-
-## College Viva Voce Defense
-
-For 30 likely oral viva questions and model answers, architectural diagrams, and discussion of vtables, virtual destructors, and concurrency, consult:
-📄 **[VIVA_GUIDE.md](VIVA_GUIDE.md)** or open the web dashboard at **[http://localhost:8080/oop.html](http://localhost:8080/oop.html)**.
