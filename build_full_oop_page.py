@@ -1,0 +1,2944 @@
+# build_full_oop_page.py
+# Generates the complete, premium C++ Architecture / OOP Explorer page for StayFinder.
+
+import json
+import os
+
+print("Assembling StayFinder C++ Architecture Explorer with layout fixes & 88% default zoom...")
+
+classes_data = [
+    {
+        "id": "user",
+        "name": "User",
+        "stereotype": "abstract",
+        "badge": "Abstract Base Class",
+        "file": "backend/models.h",
+        "lineStart": 23,
+        "lineEnd": 47,
+        "tier": "tier-1",
+        "purpose": "Abstract base identity for all participants (guests and property owners). Protects state, declares pure virtual role and notification contracts, and enforces non-empty name invariant.",
+        "concepts": ["Encapsulation", "Abstraction", "Inheritance", "Runtime Polymorphism"],
+        "attributes": [
+            {"access": "-", "type": "std::string", "name": "name_", "desc": "Participant name (validated non-empty)", "invariant": "name_.empty() throws std::invalid_argument"},
+            {"access": "-", "type": "std::string", "name": "email_", "desc": "Contact email address", "invariant": "Stored as private string"}
+        ],
+        "methods": [
+            {"access": "+", "ret": "", "name": "User(std::string name, std::string email)", "spec": "", "desc": "Validates name is not empty, initializes private fields via move semantics"},
+            {"access": "+", "ret": "void", "name": "~User()", "spec": "virtual = default", "desc": "Virtual destructor ensuring correct polymorphic cleanup through base pointer"},
+            {"access": "+", "ret": "const std::string&", "name": "name()", "spec": "const noexcept", "desc": "Encapsulated const accessor for participant name"},
+            {"access": "+", "ret": "const std::string&", "name": "email()", "spec": "const noexcept", "desc": "Encapsulated const accessor for email address"},
+            {"access": "+", "ret": "std::string", "name": "roleName()", "spec": "virtual const = 0", "desc": "Pure virtual method: runtime role identification"},
+            {"access": "+", "ret": "std::string", "name": "bookingMessage(const std::string& prop, const std::string& guest)", "spec": "virtual const = 0", "desc": "Pure virtual method: polymorphic notification generator"}
+        ],
+        "relationships": [
+            {"type": "parent-of", "target": "guest", "label": "Inherited by Guest"},
+            {"type": "parent-of", "target": "host", "label": "Inherited by Host"}
+        ],
+        "lifecycle": "Constructed with validation. Deleted via virtual destructor to prevent memory leaks and object slicing.",
+        "why": "Establishes a polymorphic identity contract in StayFinder. Enables the server notification loop in main.cpp to iterate over std::vector<const User*> and dispatch custom notification copy to guests and hosts dynamically."
+    },
+    {
+        "id": "guest",
+        "name": "Guest",
+        "stereotype": "concrete",
+        "badge": "Derived Class",
+        "file": "backend/models.h",
+        "lineStart": 50,
+        "lineEnd": 62,
+        "tier": "tier-1",
+        "purpose": "Concrete participant representing a traveler booking a stay. Specializes User via public inheritance.",
+        "concepts": ["Inheritance", "Runtime Polymorphism", "Encapsulation"],
+        "attributes": [
+            {"access": "#", "type": "inherited", "name": "name_, email_", "desc": "Inherited from User base class", "invariant": "Protected in base"}
+        ],
+        "methods": [
+            {"access": "+", "ret": "", "name": "Guest(std::string name, std::string email)", "spec": "", "desc": "Chains directly to base constructor User(std::move(name), std::move(email))"},
+            {"access": "+", "ret": "std::string", "name": "roleName()", "spec": "override const", "desc": "Returns literal 'Guest'"},
+            {"access": "+", "ret": "std::string", "name": "bookingMessage(const std::string& prop, const std::string& guest)", "spec": "override const", "desc": "Generates guest booking confirmation text: 'Thank you <guest>! Your stay at <prop> is confirmed.'"}
+        ],
+        "relationships": [
+            {"type": "inherits-from", "target": "user", "label": "Inherits from User (is-a)"},
+            {"type": "composed-in", "target": "booking", "label": "Composed in Booking (has-a)"}
+        ],
+        "lifecycle": "Passed by value and moved into Booking upon confirmation.",
+        "why": "Differentiates traveler identity and messaging from host identity, enabling runtime polymorphic notification generation without if/else role checks."
+    },
+    {
+        "id": "host",
+        "name": "Host",
+        "stereotype": "concrete",
+        "badge": "Derived Class",
+        "file": "backend/models.h",
+        "lineStart": 65,
+        "lineEnd": 77,
+        "tier": "tier-1",
+        "purpose": "Concrete participant representing an accommodation owner. Specializes User via public inheritance.",
+        "concepts": ["Inheritance", "Runtime Polymorphism", "Encapsulation"],
+        "attributes": [
+            {"access": "#", "type": "inherited", "name": "name_, email_", "desc": "Inherited from User base class", "invariant": "Protected in base"}
+        ],
+        "methods": [
+            {"access": "+", "ret": "", "name": "Host(std::string name, std::string email)", "spec": "", "desc": "Chains directly to base constructor User(std::move(name), std::move(email))"},
+            {"access": "+", "ret": "std::string", "name": "roleName()", "spec": "override const", "desc": "Returns literal 'Host'"},
+            {"access": "+", "ret": "std::string", "name": "bookingMessage(const std::string& prop, const std::string& guest)", "spec": "override const", "desc": "Generates owner notification text: 'Host notification: New reservation at <prop> for <guest>.'"}
+        ],
+        "relationships": [
+            {"type": "inherits-from", "target": "user", "label": "Inherits from User (is-a)"},
+            {"type": "composed-in", "target": "property", "label": "Composed in Property (has-a)"}
+        ],
+        "lifecycle": "Composed directly inside each Property instance.",
+        "why": "Encapsulates property host information with verified email contact, participating in runtime polymorphic notifications."
+    },
+    {
+        "id": "property",
+        "name": "Property",
+        "stereotype": "model",
+        "badge": "Domain Model (Composition)",
+        "file": "backend/models.h",
+        "lineStart": 127,
+        "lineEnd": 166,
+        "tier": "tier-1",
+        "purpose": "Core accommodation entity in the marketplace. Demonstrates Object Composition by embedding a Host instance directly as a member.",
+        "concepts": ["Encapsulation", "Composition", "Operator Overloading"],
+        "attributes": [
+            {"access": "-", "type": "int", "name": "id_", "desc": "Unique database primary key", "invariant": "> 0"},
+            {"access": "-", "type": "std::string", "name": "name_", "desc": "Accommodation title", "invariant": "Non-empty string"},
+            {"access": "-", "type": "std::string", "name": "city_", "desc": "Destination city", "invariant": "Non-empty string"},
+            {"access": "-", "type": "std::string", "name": "description_", "desc": "Architectural description", "invariant": "Text narrative"},
+            {"access": "-", "type": "int", "name": "pricePerNight_", "desc": "Nightly rate in Indian Rupees (₹)", "invariant": "> 0"},
+            {"access": "-", "type": "int", "name": "maxGuests_", "desc": "Maximum allowed occupancy", "invariant": ">= 1"},
+            {"access": "-", "type": "std::string", "name": "imageFile_", "desc": "Photography asset filename", "invariant": "Local asset name"},
+            {"access": "-", "type": "Host", "name": "host_", "desc": "Embedded owner instance (Composition)", "invariant": "Valid Host instance"}
+        ],
+        "methods": [
+            {"access": "+", "ret": "", "name": "Property(int id, std::string name, std::string city, ... Host host)", "spec": "", "desc": "Parameterized constructor with member initialization list"},
+            {"access": "+", "ret": "int", "name": "id()", "spec": "const noexcept", "desc": "Const accessor for property ID"},
+            {"access": "+", "ret": "const std::string&", "name": "name()", "spec": "const noexcept", "desc": "Const accessor for property title"},
+            {"access": "+", "ret": "const std::string&", "name": "city()", "spec": "const noexcept", "desc": "Const accessor for destination city"},
+            {"access": "+", "ret": "int", "name": "pricePerNight()", "spec": "const noexcept", "desc": "Const accessor for nightly rate"},
+            {"access": "+", "ret": "int", "name": "maxGuests()", "spec": "const noexcept", "desc": "Const accessor for capacity"},
+            {"access": "+", "ret": "const Host&", "name": "host()", "spec": "const noexcept", "desc": "Composition accessor returning const reference to Host"},
+            {"access": "+", "ret": "friend std::ostream&", "name": "operator<<(std::ostream& os, const Property& p)", "spec": "friend", "desc": "Operator Overloading: custom stream output"}
+        ],
+        "relationships": [
+            {"type": "composes", "target": "host", "label": "Composes Host (has-a)"},
+            {"type": "composed-in", "target": "booking", "label": "Composed in Booking (has-a)"}
+        ],
+        "lifecycle": "Instantiated from SQLite rows by Database::readPropertyFromRow. Read-only thereafter.",
+        "why": "Acts as the central domain entity for booking searches, capacity constraints, and pricing calculations. Demonstrates object composition by bundling host identity with physical property details."
+    },
+    {
+        "id": "booking",
+        "name": "Booking",
+        "stereotype": "model",
+        "badge": "Domain Model (Lifecycle & Invariants)",
+        "file": "backend/models.h",
+        "lineStart": 172,
+        "lineEnd": 237,
+        "tier": "tier-1",
+        "purpose": "Encapsulates a confirmed or cancelled reservation. Demonstrates Composition by embedding Property and Guest, and enforces state transition invariants via cancel().",
+        "concepts": ["Encapsulation", "Composition", "Operator Overloading"],
+        "attributes": [
+            {"access": "-", "type": "int", "name": "id_", "desc": "Authoritative reservation ID", "invariant": "> 0"},
+            {"access": "-", "type": "Property", "name": "property_", "desc": "Embedded Property entity (Composition)", "invariant": "Valid Property"},
+            {"access": "-", "type": "Guest", "name": "guest_", "desc": "Embedded Guest entity (Composition)", "invariant": "Valid Guest"},
+            {"access": "-", "type": "std::string", "name": "checkIn_, checkOut_", "desc": "Stay date range (YYYY-MM-DD)", "invariant": "checkIn < checkOut"},
+            {"access": "-", "type": "int", "name": "nights_", "desc": "Number of reserved nights", "invariant": ">= 1"},
+            {"access": "-", "type": "int", "name": "totalPrice_", "desc": "Calculated total price in INR", "invariant": "Authoritative total"},
+            {"access": "-", "type": "std::string", "name": "status_", "desc": "Lifecycle state: CONFIRMED or CANCELLED", "invariant": "Controlled mutation only"}
+        ],
+        "methods": [
+            {"access": "+", "ret": "", "name": "Booking(int id, Property property, Guest guest, ...)", "spec": "", "desc": "Parameterized constructor with member initialization list"},
+            {"access": "+", "ret": "bool", "name": "isConfirmed()", "spec": "const noexcept", "desc": "Checks if status_ == 'CONFIRMED'"},
+            {"access": "+", "ret": "bool", "name": "isCancelled()", "spec": "const noexcept", "desc": "Checks if status_ == 'CANCELLED'"},
+            {"access": "+", "ret": "void", "name": "cancel()", "spec": "", "desc": "Controlled state mutation: validates invariant and throws std::logic_error if already cancelled"},
+            {"access": "+", "ret": "friend std::ostream&", "name": "operator<<(std::ostream& os, const Booking& b)", "spec": "friend", "desc": "Operator Overloading: stream output with details"},
+            {"access": "+", "ret": "bool", "name": "operator==(const Booking& other)", "spec": "const noexcept", "desc": "Operator Overloading: equality comparison by ID"}
+        ],
+        "relationships": [
+            {"type": "composes", "target": "property", "label": "Composes Property (has-a)"},
+            {"type": "composes", "target": "guest", "label": "Composes Guest (has-a)"}
+        ],
+        "lifecycle": "Created on successful booking check; status mutated to CANCELLED upon cancellation. Equality based on unique ID.",
+        "why": "Encapsulates the complete contractual agreement between guest and property, ensuring invalid state changes cannot occur through direct field manipulation."
+    },
+    {
+        "id": "pricing_strategy",
+        "name": "PricingStrategy",
+        "stereotype": "strategy",
+        "badge": "Strategy Pattern (Abstract Base)",
+        "file": "backend/models.h",
+        "lineStart": 83,
+        "lineEnd": 89,
+        "tier": "tier-2",
+        "purpose": "Abstract strategy interface for the Strategy Design Pattern. Defines the contract for dynamic pricing and discount computation.",
+        "concepts": ["Abstraction", "Inheritance", "Runtime Polymorphism"],
+        "attributes": [],
+        "methods": [
+            {"access": "+", "ret": "void", "name": "~PricingStrategy()", "spec": "virtual = default", "desc": "Virtual destructor ensuring correct polymorphic cleanup"},
+            {"access": "+", "ret": "std::string", "name": "strategyName()", "spec": "virtual const = 0", "desc": "Pure virtual method: human-readable strategy identifier"},
+            {"access": "+", "ret": "int", "name": "calculateTotal(int rate, int nights, int guests)", "spec": "virtual const = 0", "desc": "Pure virtual method: final invoice computation"},
+            {"access": "+", "ret": "int", "name": "calculateDiscount(int rate, int nights, int guests)", "spec": "virtual const = 0", "desc": "Pure virtual method: discount deduction computation"}
+        ],
+        "relationships": [
+            {"type": "parent-of", "target": "standard_pricing", "label": "Inherited by StandardPricingStrategy"},
+            {"type": "parent-of", "target": "extended_pricing", "label": "Inherited by ExtendedStayPricingStrategy"},
+            {"type": "owned-by", "target": "sqlite_service", "label": "Owned by SqliteBookingService (unique_ptr)"}
+        ],
+        "lifecycle": "Held via std::unique_ptr<PricingStrategy> in SqliteBookingService.",
+        "why": "Separates pricing algorithms from the booking workflow, allowing new pricing policies (seasonal, weekend, VIP) to be added without modifying the core service logic."
+    },
+    {
+        "id": "standard_pricing",
+        "name": "StandardPricingStrategy",
+        "stereotype": "concrete",
+        "badge": "Concrete Strategy",
+        "file": "backend/models.h",
+        "lineStart": 92,
+        "lineEnd": 103,
+        "tier": "tier-2",
+        "purpose": "Concrete pricing policy implementing linear pricing: total = nightlyRate * nights, discount = 0.",
+        "concepts": ["Inheritance", "Runtime Polymorphism"],
+        "attributes": [],
+        "methods": [
+            {"access": "+", "ret": "std::string", "name": "strategyName()", "spec": "override const", "desc": "Returns 'Standard Daily Rate'"},
+            {"access": "+", "ret": "int", "name": "calculateTotal(int rate, int nights, int guests)", "spec": "override const", "desc": "Computes rate * nights (zero discount)"},
+            {"access": "+", "ret": "int", "name": "calculateDiscount(int rate, int nights, int guests)", "spec": "override const", "desc": "Returns 0"}
+        ],
+        "relationships": [
+            {"type": "inherits-from", "target": "pricing_strategy", "label": "Inherits from PricingStrategy (is-a)"}
+        ],
+        "lifecycle": "Instantiated once by SqliteBookingService constructor and invoked for stays < 5 nights.",
+        "why": "Implements the baseline billing policy for standard short-term stays in the marketplace."
+    },
+    {
+        "id": "extended_pricing",
+        "name": "ExtendedStayPricingStrategy",
+        "stereotype": "concrete",
+        "badge": "Concrete Strategy",
+        "file": "backend/models.h",
+        "lineStart": 106,
+        "lineEnd": 121,
+        "tier": "tier-2",
+        "purpose": "Concrete pricing policy applying a 10% discount for bookings lasting 5 nights or longer.",
+        "concepts": ["Inheritance", "Runtime Polymorphism"],
+        "attributes": [],
+        "methods": [
+            {"access": "+", "ret": "std::string", "name": "strategyName()", "spec": "override const", "desc": "Returns 'Extended Stay Discount (10% off 5+ nights)'"},
+            {"access": "+", "ret": "int", "name": "calculateDiscount(int rate, int nights, int guests)", "spec": "override const", "desc": "Calculates (rate * nights * 10) / 100 if nights >= 5, else 0"},
+            {"access": "+", "ret": "int", "name": "calculateTotal(int rate, int nights, int guests)", "spec": "override const", "desc": "Returns base - discount"}
+        ],
+        "relationships": [
+            {"type": "inherits-from", "target": "pricing_strategy", "label": "Inherits from PricingStrategy (is-a)"}
+        ],
+        "lifecycle": "Instantiated once by SqliteBookingService constructor and invoked dynamically for stays >= 5 nights.",
+        "why": "Encourages longer accommodation bookings by providing an automated discount strategy selected via runtime polymorphism."
+    },
+    {
+        "id": "booking_service",
+        "name": "BookingService",
+        "stereotype": "interface",
+        "badge": "Abstract Service Interface",
+        "file": "backend/booking_service.h",
+        "lineStart": 56,
+        "lineEnd": 81,
+        "tier": "tier-3",
+        "purpose": "Abstract architectural boundary defining all booking operations. Decouples HTTP request routing from SQLite storage and threading mechanisms.",
+        "concepts": ["Abstraction", "Inheritance", "Compile-Time Polymorphism (Overloading)"],
+        "attributes": [],
+        "methods": [
+            {"access": "+", "ret": "void", "name": "~BookingService()", "spec": "virtual = default", "desc": "Virtual destructor"},
+            {"access": "+", "ret": "std::vector<Property>", "name": "searchProperties(const std::string& city)", "spec": "virtual = 0", "desc": "Overload 1: Basic city filter"},
+            {"access": "+", "ret": "std::vector<Property>", "name": "searchProperties(const std::string& city, int minGuests, int maxPrice)", "spec": "virtual = 0", "desc": "Overload 2: Multi-criteria filter (Compile-time overloading)"},
+            {"access": "+", "ret": "Property", "name": "getProperty(int id)", "spec": "virtual = 0", "desc": "Lookup by ID"},
+            {"access": "+", "ret": "Booking", "name": "createBooking(const BookingRequest& request)", "spec": "virtual = 0", "desc": "Create reservation"},
+            {"access": "+", "ret": "Booking", "name": "getBooking(int id)", "spec": "virtual = 0", "desc": "Lookup reservation"},
+            {"access": "+", "ret": "Booking", "name": "cancelBooking(int id)", "spec": "virtual = 0", "desc": "Cancel reservation"},
+            {"access": "+", "ret": "std::vector<Booking>", "name": "listBookings()", "spec": "virtual = 0", "desc": "List all reservations"},
+            {"access": "+", "ret": "int", "name": "estimatePrice(int propertyId, int nights, int guests, int& outDiscount, std::string& outStrategy)", "spec": "virtual = 0", "desc": "Calculate dynamic price"}
+        ],
+        "relationships": [
+            {"type": "parent-of", "target": "sqlite_service", "label": "Implemented by SqliteBookingService"}
+        ],
+        "lifecycle": "Referenced by main.cpp via BookingService& to maintain strict separation of concerns.",
+        "why": "Enables modular software design. The HTTP controller in main.cpp interacts only with this abstract interface, completely oblivious to whether data is stored in SQLite, PostgreSQL, or an in-memory test double."
+    },
+    {
+        "id": "sqlite_service",
+        "name": "SqliteBookingService",
+        "stereotype": "service",
+        "badge": "Concrete Service Orchestrator",
+        "file": "backend/sqlite_booking_service.h",
+        "lineStart": 18,
+        "lineEnd": 49,
+        "tier": "tier-3",
+        "purpose": "Concrete implementation of BookingService using SQLite. Coordinates thread safety via std::mutex and std::lock_guard, and selects pricing strategies dynamically.",
+        "concepts": ["Inheritance", "Runtime Polymorphism", "Compile-Time Polymorphism", "Encapsulation", "Composition", "RAII"],
+        "attributes": [
+            {"access": "-", "type": "Database&", "name": "database_", "desc": "Reference to encapsulated SQLite database", "invariant": "Must be valid initialized reference"},
+            {"access": "-", "type": "std::mutex", "name": "mutex_", "desc": "Mutual exclusion lock for write operations", "invariant": "Locked during check-and-insert"},
+            {"access": "-", "type": "std::unique_ptr<PricingStrategy>", "name": "standardStrategy_", "desc": "Linear rate strategy instance", "invariant": "Non-null unique_ptr"},
+            {"access": "-", "type": "std::unique_ptr<PricingStrategy>", "name": "extendedStayStrategy_", "desc": "Discount strategy instance", "invariant": "Non-null unique_ptr"}
+        ],
+        "methods": [
+            {"access": "+", "ret": "", "name": "SqliteBookingService(Database& database)", "spec": "explicit", "desc": "Initializes strategies via std::make_unique"},
+            {"access": "+", "ret": "std::vector<Property>", "name": "searchProperties(const std::string& city)", "spec": "override", "desc": "Overload 1 implementation"},
+            {"access": "+", "ret": "std::vector<Property>", "name": "searchProperties(const std::string& city, int minGuests, int maxPrice)", "spec": "override", "desc": "Overload 2 implementation"},
+            {"access": "+", "ret": "Booking", "name": "createBooking(const BookingRequest& request)", "spec": "override", "desc": "Acquires std::lock_guard<std::mutex>, begins transaction, checks overlap, inserts, commits"},
+            {"access": "+", "ret": "int", "name": "estimatePrice(...)", "spec": "override", "desc": "Selects strategy and dispatches via virtual method call"},
+            {"access": "-", "ret": "const PricingStrategy&", "name": "selectStrategy(int nights)", "spec": "const", "desc": "Private helper selecting strategy based on nights threshold"}
+        ],
+        "relationships": [
+            {"type": "inherits-from", "target": "booking_service", "label": "Inherits from BookingService (is-a)"},
+            {"type": "aggregates", "target": "database", "label": "Aggregates Database reference (uses-a)"},
+            {"type": "composes", "target": "pricing_strategy", "label": "Composes PricingStrategy instances (has-a)"}
+        ],
+        "lifecycle": "Instantiated in main.cpp as a single service instance bound to BookingService&.",
+        "why": "Acts as the central business logic controller, enforcing thread synchronization and ACID transaction boundaries."
+    },
+    {
+        "id": "database",
+        "name": "Database",
+        "stereotype": "raii",
+        "badge": "RAII Storage Encapsulation",
+        "file": "backend/database.h",
+        "lineStart": 25,
+        "lineEnd": 74,
+        "tier": "tier-3",
+        "purpose": "Encapsulates all raw SQLite handles (sqlite3*), SQL queries, and disk I/O. Employs RAII: opens connection in constructor, closes connection in destructor. Deletes copy operations.",
+        "concepts": ["Encapsulation", "RAII", "Compile-Time Polymorphism (Overloading)"],
+        "attributes": [
+            {"access": "-", "type": "sqlite3*", "name": "db_", "desc": "Encapsulated C SQLite connection pointer", "invariant": "Never exposed directly to callers"}
+        ],
+        "methods": [
+            {"access": "+", "ret": "", "name": "Database(const std::string& filePath)", "spec": "explicit", "desc": "RAII constructor: opens SQLite connection and runs safe migrations"},
+            {"access": "+", "ret": "void", "name": "~Database()", "spec": "", "desc": "RAII destructor: guarantees sqlite3_close(db_) is executed"},
+            {"access": "+", "ret": "", "name": "Database(const Database&)", "spec": "= delete", "desc": "Deleted copy constructor to prevent double-free of connection"},
+            {"access": "+", "ret": "Database&", "name": "operator=(const Database&)", "spec": "= delete", "desc": "Deleted copy assignment"},
+            {"access": "+", "ret": "std::vector<Property>", "name": "findProperties(const std::string& cityFilter)", "spec": "", "desc": "Overload 1: search by city"},
+            {"access": "+", "ret": "std::vector<Property>", "name": "findProperties(const std::string& cityFilter, int minGuests, int maxPrice)", "spec": "", "desc": "Overload 2: multi-criteria search"},
+            {"access": "+", "ret": "bool", "name": "hasOverlap(int propId, const std::string& in, const std::string& out)", "spec": "", "desc": "Checks calendar conflicts against CONFIRMED stays"},
+            {"access": "+", "ret": "int", "name": "insertBooking(...)", "spec": "", "desc": "Executes parameterized INSERT statement"},
+            {"access": "+", "ret": "bool", "name": "cancelBooking(int id)", "spec": "", "desc": "Marks booking as CANCELLED, unlocking calendar"},
+            {"access": "+", "ret": "void", "name": "beginTransaction(), commit(), rollback()", "spec": "", "desc": "Transaction management for atomic operations"}
+        ],
+        "relationships": [
+            {"type": "referenced-by", "target": "sqlite_service", "label": "Referenced by SqliteBookingService"}
+        ],
+        "lifecycle": "Instantiated in main() as long-lived storage handle; automatically cleans up on shutdown.",
+        "why": "Provides safety and data integrity by encapsulating low-level C SQLite API calls behind safe C++ methods, guaranteeing zero resource leaks through RAII."
+    }
+]
+
+matrix_data = [
+    {"class": "User", "encap": "Primary", "abstr": "Primary", "inher": "Base", "rt_poly": "Primary", "ct_poly": "N/A", "comp": "N/A", "raii": "Secondary (virtual ~User)"},
+    {"class": "Guest", "encap": "Primary", "abstr": "Secondary", "inher": "Derived", "rt_poly": "Primary", "ct_poly": "N/A", "comp": "Composed in Booking", "raii": "N/A"},
+    {"class": "Host", "encap": "Primary", "abstr": "Secondary", "inher": "Derived", "rt_poly": "Primary", "ct_poly": "N/A", "comp": "Composed in Property", "raii": "N/A"},
+    {"class": "Property", "encap": "Primary", "abstr": "N/A", "inher": "N/A", "rt_poly": "N/A", "ct_poly": "Primary (operator<<)", "comp": "Primary (has-a Host)", "raii": "N/A"},
+    {"class": "Booking", "encap": "Primary (invariants)", "abstr": "N/A", "inher": "N/A", "rt_poly": "N/A", "ct_poly": "Primary (operator<<, ==)", "comp": "Primary (has-a Property, Guest)", "raii": "N/A"},
+    {"class": "PricingStrategy", "encap": "N/A", "abstr": "Primary (=0)", "inher": "Base", "rt_poly": "Primary", "ct_poly": "N/A", "comp": "N/A", "raii": "Secondary (virtual ~PricingStrategy)"},
+    {"class": "StandardPricingStrategy", "encap": "N/A", "abstr": "Secondary", "inher": "Derived", "rt_poly": "Primary", "ct_poly": "N/A", "comp": "N/A", "raii": "N/A"},
+    {"class": "ExtendedStayPricingStrategy", "encap": "N/A", "abstr": "Secondary", "inher": "Derived", "rt_poly": "Primary", "ct_poly": "N/A", "comp": "N/A", "raii": "N/A"},
+    {"class": "BookingService", "encap": "N/A", "abstr": "Primary (Interface)", "inher": "Base", "rt_poly": "Primary", "ct_poly": "Primary (Overloaded search)", "comp": "N/A", "raii": "Secondary (virtual ~BookingService)"},
+    {"class": "SqliteBookingService", "encap": "Primary", "abstr": "Secondary", "inher": "Derived", "rt_poly": "Primary", "ct_poly": "Primary (Overload impl)", "comp": "Primary (unique_ptr Strategy, DB&)", "raii": "Primary (lock_guard)"},
+    {"class": "Database", "encap": "Primary (hides sqlite3*)", "abstr": "Secondary", "inher": "N/A", "rt_poly": "N/A", "ct_poly": "Primary (Overloaded find)", "comp": "N/A", "raii": "Primary (Destructor closes db)"}
+]
+
+concepts_data = [
+    {
+        "id": "encapsulation",
+        "title": "Encapsulation",
+        "badge": "Implemented",
+        "kicker": "Data Hiding & Class Invariants",
+        "summary": "Bundles state with member methods while strictly restricting direct field access via private access specifiers.",
+        "codeRef": "backend/models.h (Lines 23–47, 172–237) & backend/database.h (Lines 25–74)",
+        "classes": ["User", "Property", "Booking", "Database", "SqliteBookingService"],
+        "description": "In StayFinder, encapsulation is applied strictly across both domain models and infrastructure components. Data fields like participant names, nightly rates, booking status, and raw SQLite C pointers (sqlite3*) are declared strictly private. State cannot be modified arbitrarily; all mutations must pass through validated member functions such as Booking::cancel(), which verifies business invariants (throwing std::logic_error if double-cancelled). Const-correctness is strictly enforced using const noexcept accessors to guarantee read-only guarantees."
+    },
+    {
+        "id": "abstraction",
+        "title": "Abstraction",
+        "badge": "Implemented",
+        "kicker": "Abstract Interfaces & Decoupling",
+        "summary": "Hides implementation complexity behind pure virtual interface contracts (= 0), completely decoupling consumers from storage engines.",
+        "codeRef": "backend/models.h (Lines 23–47, 83–89) & backend/booking_service.h (Lines 56–81)",
+        "classes": ["User", "PricingStrategy", "BookingService"],
+        "description": "Abstraction defines WHAT an operation does without revealing HOW it is implemented. StayFinder features three pure abstract classes: User (defines role and notification contracts), PricingStrategy (defines price calculation contracts), and BookingService (defines marketplace business operations). Callers like the HTTP router in main.cpp interact exclusively with BookingService& and User*, with zero dependency on sqlite3.h or threading locks."
+    },
+    {
+        "id": "inheritance",
+        "title": "Inheritance",
+        "badge": "Implemented",
+        "kicker": "Class Derivation & Constructor Chaining",
+        "summary": "Establishes 'is-a' relationships where derived classes inherit state and virtual interfaces, chaining constructors and overriding methods.",
+        "codeRef": "backend/models.h (Lines 50–77, 92–121) & backend/sqlite_booking_service.h (Lines 18–49)",
+        "classes": ["Guest", "Host", "StandardPricingStrategy", "ExtendedStayPricingStrategy", "SqliteBookingService"],
+        "description": "StayFinder implements 4 genuine inheritance hierarchies: (1) Identity Hierarchy: User -> Guest, Host; (2) Strategy Hierarchy: PricingStrategy -> StandardPricingStrategy, ExtendedStayPricingStrategy; (3) Service Hierarchy: BookingService -> SqliteBookingService; and (4) Exception Hierarchy: std::runtime_error -> ValidationError, NotFoundError, ConflictError, DatabaseError. Derived classes reuse base member initialization via constructor chaining (e.g. Guest(...) : User(...)) and override pure virtual methods with the override specifier."
+    },
+    {
+        "id": "polymorphism",
+        "title": "Polymorphism",
+        "badge": "Implemented",
+        "kicker": "Runtime vtable Dispatch & Overloading",
+        "summary": "Dual-mode polymorphism: runtime dynamic dispatch through virtual method tables (vtable) and compile-time function/operator overloading.",
+        "codeRef": "backend/models.h (Lines 83–121, 151–155, 211–224) & backend/main.cpp (Lines 224–237)",
+        "classes": ["User", "PricingStrategy", "BookingService", "Property", "Booking"],
+        "description": "StayFinder demonstrates both forms of C++ polymorphism: (1) Runtime Polymorphism: In main.cpp lines 224–237, a polymorphic loop over std::vector<const User*> dynamically invokes roleName() and bookingMessage() via the hidden vptr/vtable mechanism. Similarly, SqliteBookingService::estimatePrice() invokes calculateTotal() and calculateDiscount() dynamically through PricingStrategy*. (2) Compile-Time Polymorphism: Function overloading is used in BookingService::searchProperties and Database::findProperties for single vs multi-criteria search, while operator<< and operator== are overloaded for Property and Booking."
+    }
+]
+
+def build_page():
+    classes_json = json.dumps(classes_data)
+    matrix_json = json.dumps(matrix_data)
+    concepts_json = json.dumps(concepts_data)
+
+    html = f"""<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StayFinder — C++ Architecture & OOP Explorer</title>
+    <meta name="description" content="Interactive visual software architecture workspace for StayFinder C++17 codebase. UML class modeling, vtable runtime polymorphism, Strategy Pattern, RAII encapsulation, and source code navigation.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    
+    <!-- Anti-FOUT Theme Initializer (Isolated strictly to Architecture Explorer, defaults to Dark Mode) -->
+    <script>
+        (function() {{
+            try {{
+                var saved = localStorage.getItem("stayfinder-architecture-theme") || "dark";
+                document.documentElement.setAttribute("data-theme", saved);
+            }} catch(e) {{}}
+        }})();
+    </script>
+
+    <style>
+        /* ===================================================================
+           THEME DEFINITIONS (Exclusively Scoped to .architecture-page)
+        =================================================================== */
+
+        /* 1. DARK MODE PALETTE (Default: Elegant warm charcoal) */
+        .architecture-page,
+        .architecture-page[data-theme="dark"],
+        html[data-theme="dark"] .architecture-page {{
+            --bg-canvas: #171714;
+            --bg-surface: #201F1B;
+            --bg-card: #292720;
+            --bg-secondary: #343027;
+            --text-main: #F2EEE5;
+            --text-muted: #B8B0A2;
+            --text-dim: #8A8275;
+            --border-color: #454034;
+            --btn-primary-bg: #D5C3A5;
+            --btn-primary-text: #242018;
+            --hover-surface: #3C372D;
+
+            /* Accents */
+            --accent-terracotta: #DE8F55;
+            --accent-terracotta-glow: rgba(222, 143, 85, 0.22);
+            --accent-cyan: #59B8AD;
+            --accent-cyan-glow: rgba(89, 184, 173, 0.22);
+            --accent-green: #68B87E;
+            --accent-green-glow: rgba(104, 184, 126, 0.22);
+            --accent-purple: #B29FE6;
+            --accent-purple-glow: rgba(178, 159, 230, 0.22);
+            --accent-crimson: #E67A6A;
+            --accent-crimson-glow: rgba(230, 122, 106, 0.22);
+
+            /* UML Nodes & Syntax */
+            --uml-node-bg: #201F1B;
+            --uml-node-header-bg: #292720;
+            --uml-node-border: #454034;
+            --uml-node-active-border: #DE8F55;
+            --syntax-bg: #151512;
+            --syntax-border: #3A352B;
+            --syntax-text: #F2EEE5;
+            --syntax-kw: #E67A6A;
+            --syntax-type: #B29FE6;
+            --syntax-fn: #70BFE6;
+            --syntax-str: #88CFA0;
+            --syntax-com: #8A8275;
+
+            /* Terminal Console */
+            --terminal-bg: #12120F;
+            --terminal-border: #332F26;
+            --terminal-text: #68D190;
+
+            /* Shadows */
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.35);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+            --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+        }}
+
+        /* 2. LIGHT MODE PALETTE (Warm, eye-friendly white and beige shades) */
+        .architecture-page[data-theme="light"],
+        html[data-theme="light"] .architecture-page {{
+            --bg-canvas: #F5F1E8;
+            --bg-surface: #FBF8F1;
+            --bg-card: #F0E9DC;
+            --bg-secondary: #E8DFD0;
+            --text-main: #302C26;
+            --text-muted: #746B60;
+            --text-dim: #948A7D;
+            --border-color: #DDD3C3;
+            --btn-primary-bg: #55483A;
+            --btn-primary-text: #FFFDF8;
+            --hover-surface: #E5DACA;
+
+            /* Accents */
+            --accent-terracotta: #9C4E23;
+            --accent-terracotta-glow: rgba(156, 78, 35, 0.16);
+            --accent-cyan: #2A6E67;
+            --accent-cyan-glow: rgba(42, 110, 103, 0.16);
+            --accent-green: #2B663F;
+            --accent-green-glow: rgba(43, 102, 63, 0.16);
+            --accent-purple: #5A4B82;
+            --accent-purple-glow: rgba(90, 75, 130, 0.16);
+            --accent-crimson: #A33324;
+            --accent-crimson-glow: rgba(163, 51, 36, 0.16);
+
+            /* UML Nodes & Syntax */
+            --uml-node-bg: #FBF8F1;
+            --uml-node-header-bg: #F0E9DC;
+            --uml-node-border: #DDD3C3;
+            --uml-node-active-border: #9C4E23;
+            --syntax-bg: #EAE1D2;
+            --syntax-border: #D8CEBD;
+            --syntax-text: #302C26;
+            --syntax-kw: #9C3828;
+            --syntax-type: #5A4B82;
+            --syntax-fn: #275A77;
+            --syntax-str: #2B663F;
+            --syntax-com: #857B6F;
+
+            /* Terminal Console */
+            --terminal-bg: #27231D;
+            --terminal-border: #423C32;
+            --terminal-text: #68D190;
+
+            /* Shadows */
+            --shadow-sm: 0 2px 8px rgba(48, 44, 38, 0.05);
+            --shadow-md: 0 8px 24px rgba(48, 44, 38, 0.08);
+            --shadow-lg: 0 16px 40px rgba(48, 44, 38, 0.11);
+        }}
+
+        /* Constants & Shared Resets */
+        :root {{
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --radius-full: 9999px;
+            --font-code: "SFMono-Regular", Consolas, "Fira Code", Monaco, Menlo, monospace;
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-serif: "Georgia", "Cambria", "Times New Roman", serif;
+        }}
+
+        * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+
+        html {{
+            scroll-behavior: smooth;
+        }}
+
+        body.architecture-page {{
+            background-color: var(--bg-canvas);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            line-height: 1.6;
+            overflow-x: hidden;
+            transition: background-color 220ms ease, color 220ms ease;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) var(--bg-canvas);
+        }}
+
+        body.architecture-page::-webkit-scrollbar {{
+            width: 8px;
+            height: 8px;
+        }}
+
+        body.architecture-page::-webkit-scrollbar-track {{
+            background: var(--bg-canvas);
+        }}
+
+        body.architecture-page::-webkit-scrollbar-thumb {{
+            background: var(--border-color);
+            border-radius: var(--radius-full);
+        }}
+
+        body.architecture-page::-webkit-scrollbar-thumb:hover {{
+            background: var(--hover-surface);
+        }}
+
+        .container {{
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 24px;
+            box-sizing: border-box;
+        }}
+
+        a {{ color: inherit; text-decoration: none; }}
+
+        /* Header */
+        .header {{
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-color);
+            height: 72px;
+            display: flex;
+            align-items: center;
+            transition: background 220ms ease, border-color 220ms ease;
+        }}
+
+        .header-wrap {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            gap: 16px;
+        }}
+
+        .logo-wrap {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }}
+
+        .logo-icon {{
+            width: 38px;
+            height: 38px;
+            background: var(--btn-primary-bg);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--btn-primary-text);
+            box-shadow: var(--shadow-sm);
+        }}
+
+        .logo-title {{
+            font-family: var(--font-serif);
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--text-main);
+        }}
+
+        .logo-tag {{
+            font-size: 0.72rem;
+            background: var(--bg-secondary);
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            padding: 3px 9px;
+            border-radius: var(--radius-full);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }}
+
+        .header-nav {{
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }}
+
+        .nav-links {{
+            display: flex;
+            gap: 18px;
+            list-style: none;
+            align-items: center;
+        }}
+
+        .nav-link {{
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            transition: color 150ms;
+        }}
+
+        .nav-link:hover {{
+            color: var(--text-main);
+        }}
+
+        .header-actions {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }}
+
+        /* Theme Toggle Button */
+        .theme-toggle-btn {{
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-full);
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-main);
+            cursor: pointer;
+            transition: all 200ms ease;
+            box-shadow: var(--shadow-sm);
+        }}
+
+        .theme-toggle-btn:hover {{
+            background: var(--hover-surface);
+            border-color: var(--accent-terracotta);
+            transform: translateY(-1px);
+        }}
+
+        .theme-toggle-btn:focus-visible {{
+            outline: 2px solid var(--accent-terracotta);
+            outline-offset: 2px;
+        }}
+
+        .theme-toggle-btn .icon-sun,
+        .theme-toggle-btn .icon-moon {{
+            width: 19px;
+            height: 19px;
+            transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease;
+            position: absolute;
+        }}
+
+        /* Dark mode active: show sun icon to switch to light */
+        .architecture-page[data-theme="dark"] .theme-toggle-btn .icon-moon,
+        html[data-theme="dark"] .architecture-page .theme-toggle-btn .icon-moon {{
+            opacity: 0;
+            transform: rotate(-90deg) scale(0.5);
+            pointer-events: none;
+        }}
+
+        .architecture-page[data-theme="dark"] .theme-toggle-btn .icon-sun,
+        html[data-theme="dark"] .architecture-page .theme-toggle-btn .icon-sun {{
+            opacity: 1;
+            transform: rotate(0) scale(1);
+        }}
+
+        /* Light mode active: show moon icon to switch to dark */
+        .architecture-page[data-theme="light"] .theme-toggle-btn .icon-sun,
+        html[data-theme="light"] .architecture-page .theme-toggle-btn .icon-sun {{
+            opacity: 0;
+            transform: rotate(90deg) scale(0.5);
+            pointer-events: none;
+        }}
+
+        .architecture-page[data-theme="light"] .theme-toggle-btn .icon-moon,
+        html[data-theme="light"] .architecture-page .theme-toggle-btn .icon-moon {{
+            opacity: 1;
+            transform: rotate(0) scale(1);
+        }}
+
+        .btn-return {{
+            font-size: 0.85rem;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: var(--radius-full);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            transition: all 180ms ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }}
+
+        .btn-return:hover {{
+            background: var(--hover-surface);
+            border-color: var(--accent-terracotta);
+        }}
+
+        /* Hero */
+        .hero {{
+            padding: 56px 0 36px;
+            border-bottom: 1px solid var(--border-color);
+            background: linear-gradient(180deg, var(--bg-surface) 0%, var(--bg-canvas) 100%);
+        }}
+
+        .hero-badge {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--accent-terracotta);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            padding: 5px 14px;
+            border-radius: var(--radius-full);
+            margin-bottom: 18px;
+        }}
+
+        .hero h1 {{
+            font-family: var(--font-serif);
+            font-size: clamp(2rem, 4.5vw, 2.9rem);
+            line-height: 1.2;
+            letter-spacing: -0.02em;
+            color: var(--text-main);
+            margin-bottom: 14px;
+        }}
+
+        .hero p {{
+            font-size: 1.05rem;
+            color: var(--text-muted);
+            max-width: 820px;
+            line-height: 1.65;
+            margin-bottom: 28px;
+        }}
+
+        .metrics-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 14px;
+        }}
+
+        .metric-pill {{
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: var(--shadow-sm);
+        }}
+
+        .metric-icon {{
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            background: var(--bg-secondary);
+            color: var(--accent-terracotta);
+            flex-shrink: 0;
+        }}
+
+        .metric-text {{
+            font-size: 0.86rem;
+            font-weight: 700;
+            color: var(--text-main);
+            line-height: 1.3;
+        }}
+
+        .metric-sub {{
+            font-size: 0.74rem;
+            color: var(--text-dim);
+            font-weight: 500;
+        }}
+
+        /* Sections with scroll offset protection against sticky header */
+        .section {{
+            padding: 64px 0;
+            border-bottom: 1px solid var(--border-color);
+            scroll-margin-top: 84px;
+        }}
+
+        .section-header {{
+            margin-bottom: 30px;
+        }}
+
+        .section-kicker {{
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--accent-terracotta);
+            margin-bottom: 6px;
+            display: block;
+        }}
+
+        .section-title {{
+            font-family: var(--font-serif);
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            color: var(--text-main);
+            margin-bottom: 8px;
+        }}
+
+        .section-desc {{
+            font-size: 1rem;
+            color: var(--text-muted);
+            max-width: 780px;
+            line-height: 1.6;
+        }}
+
+        /* ===================================================================
+           Section 1: Overview 4 Concept Tiles (Responsive & Equal Heights)
+        =================================================================== */
+        .overview-tiles-grid {{
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            align-items: stretch;
+        }}
+
+        @media (max-width: 1080px) {{
+            .overview-tiles-grid {{
+                grid-template-columns: repeat(2, 1fr);
+            }}
+        }}
+
+        @media (max-width: 600px) {{
+            .overview-tiles-grid {{
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }}
+        }}
+
+        .concept-tile {{
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            box-sizing: border-box;
+            transition: all 220ms ease;
+            box-shadow: var(--shadow-sm);
+            position: relative;
+            cursor: pointer;
+        }}
+
+        .concept-tile:hover {{
+            border-color: var(--accent-terracotta);
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-md);
+        }}
+
+        .concept-tile-top {{
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 12px;
+            flex-wrap: nowrap;
+        }}
+
+        .concept-tile-title {{
+            font-family: var(--font-serif);
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-main);
+            line-height: 1.25;
+            min-width: 0;
+            word-break: normal;
+            overflow-wrap: break-word;
+        }}
+
+        .status-pill {{
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 8px;
+            border-radius: var(--radius-full);
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            background: rgba(104, 184, 126, 0.15);
+            color: var(--accent-green);
+            border: 1px solid rgba(104, 184, 126, 0.3);
+            flex-shrink: 0;
+            white-space: nowrap;
+        }}
+
+        .status-dot {{
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-green);
+        }}
+
+        .concept-tile-kicker {{
+            font-size: 0.76rem;
+            color: var(--accent-terracotta);
+            font-weight: 600;
+            margin-bottom: 8px;
+            line-height: 1.35;
+            min-height: 2.6em;
+        }}
+
+        .concept-tile-def {{
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-bottom: 16px;
+            flex-grow: 1;
+            min-height: 4.6em;
+        }}
+
+        .concept-tile-classes {{
+            margin-bottom: 16px;
+        }}
+
+        .classes-label {{
+            font-size: 0.70rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            font-weight: 700;
+            margin-bottom: 6px;
+        }}
+
+        .classes-pills {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            min-height: 54px;
+            align-content: flex-start;
+        }}
+
+        .class-pill {{
+            font-family: var(--font-code);
+            font-size: 0.74rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 2px 7px;
+            border-radius: var(--radius-sm);
+            color: var(--text-main);
+        }}
+
+        .btn-explore-concept {{
+            margin-top: auto;
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-main);
+            font-size: 0.86rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 180ms ease;
+        }}
+
+        .concept-tile:hover .btn-explore-concept {{
+            background: var(--btn-primary-bg);
+            color: var(--btn-primary-text);
+            border-color: transparent;
+        }}
+
+        /* ===================================================================
+           Section 2: Interactive UML Class Diagram (Single Row Toolbar & Exact 88% Zoom)
+        =================================================================== */
+        .diagram-toolbar {{
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: nowrap;
+            box-sizing: border-box;
+        }}
+
+        @media (max-width: 1024px) {{
+            .diagram-toolbar {{
+                flex-wrap: wrap;
+                gap: 12px;
+            }}
+        }}
+
+        @media (max-width: 640px) {{
+            .diagram-toolbar {{
+                overflow-x: auto;
+                flex-wrap: nowrap;
+                padding: 10px 14px;
+                scrollbar-width: thin;
+            }}
+            .diagram-controls-group {{
+                flex-shrink: 0;
+            }}
+        }}
+
+        .diagram-controls-group {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+
+        .diagram-btn {{
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 6px 12px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-main);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 150ms ease;
+            white-space: nowrap;
+        }}
+
+        .diagram-btn:hover {{
+            background: var(--hover-surface);
+            border-color: var(--accent-terracotta);
+        }}
+
+        .zoom-badge-pill {{
+            font-family: var(--font-code);
+            font-size: 0.80rem;
+            font-weight: 700;
+            color: var(--accent-terracotta);
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 4px 10px;
+            border-radius: var(--radius-full);
+            min-width: 46px;
+            text-align: center;
+        }}
+
+        .filter-pills {{
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }}
+
+        .filter-pill {{
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-full);
+            padding: 5px 12px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 150ms ease;
+            white-space: nowrap;
+        }}
+
+        .filter-pill.active {{
+            background: var(--accent-terracotta);
+            color: #ffffff;
+            border-color: var(--accent-terracotta);
+        }}
+
+        .diagram-viewport {{
+            position: relative;
+            width: 100%;
+            height: 640px;
+            background: var(--bg-canvas);
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            cursor: grab;
+        }}
+
+        .diagram-viewport.panning {{
+            cursor: grabbing;
+        }}
+
+        .diagram-svg {{
+            width: 100%;
+            height: 100%;
+            display: block;
+        }}
+
+        .diagram-legend {{
+            position: absolute;
+            bottom: 14px;
+            left: 14px;
+            background: rgba(32, 31, 27, 0.92);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 8px 14px;
+            font-size: 0.74rem;
+            display: flex;
+            gap: 16px;
+            color: var(--text-muted);
+            pointer-events: none;
+            z-index: 10;
+        }}
+
+        .legend-item {{
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }}
+
+        /* UML SVG Elements */
+        .uml-node {{
+            cursor: pointer;
+            transition: filter 180ms ease, transform 180ms ease;
+        }}
+
+        .uml-node:hover {{
+            filter: drop-shadow(0 4px 12px rgba(222, 143, 85, 0.28));
+        }}
+
+        .uml-node.active rect.node-box {{
+            stroke: var(--accent-terracotta) !important;
+            stroke-width: 2.5px !important;
+        }}
+
+        .uml-node.dimmed {{
+            opacity: 0.25;
+        }}
+
+        .uml-edge {{
+            stroke: var(--border-color);
+            stroke-width: 1.8;
+            fill: none;
+            transition: stroke 200ms ease, stroke-width 200ms ease;
+        }}
+
+        .uml-edge.highlighted {{
+            stroke: var(--accent-terracotta);
+            stroke-width: 3;
+            filter: drop-shadow(0 0 6px var(--accent-terracotta-glow));
+        }}
+
+        .uml-edge.dimmed {{
+            opacity: 0.15;
+        }}
+
+        /* ===================================================================
+           Section 3: Concept Studios (Tabbed)
+        =================================================================== */
+        .studios-tabs-bar {{
+            display: flex;
+            gap: 8px;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 28px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }}
+
+        .studio-tab-btn {{
+            background: transparent;
+            border: none;
+            padding: 12px 20px;
+            font-size: 0.94rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+            white-space: nowrap;
+            transition: all 180ms ease;
+        }}
+
+        .studio-tab-btn:hover {{
+            color: var(--text-main);
+        }}
+
+        .studio-tab-btn.active {{
+            color: var(--accent-terracotta);
+            border-bottom-color: var(--accent-terracotta);
+        }}
+
+        .studio-panel {{
+            display: none;
+        }}
+
+        .studio-panel.active {{
+            display: block;
+        }}
+
+        .studio-card {{
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 24px;
+        }}
+
+        .studio-grid-2 {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }}
+
+        @media (max-width: 900px) {{
+            .studio-grid-2 {{ grid-template-columns: 1fr; }}
+        }}
+
+        /* Interactive Simulator Panels */
+        .sim-box {{
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 20px;
+        }}
+
+        .sim-header {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }}
+
+        .sim-title {{
+            font-size: 0.92rem;
+            font-weight: 700;
+            color: var(--text-main);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }}
+
+        .terminal-console {{
+            background: var(--terminal-bg);
+            border: 1px solid var(--terminal-border);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            font-family: var(--font-code);
+            font-size: 0.85rem;
+            color: var(--terminal-text);
+            line-height: 1.6;
+            margin-top: 14px;
+            min-height: 84px;
+        }}
+
+        /* Code Excerpt Box */
+        .code-box {{
+            background: var(--syntax-bg);
+            border: 1px solid var(--syntax-border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            font-family: var(--font-code);
+            font-size: 0.84rem;
+        }}
+
+        .code-box-header {{
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--syntax-border);
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+        }}
+
+        .code-box pre {{
+            padding: 16px;
+            overflow-x: auto;
+            color: var(--syntax-text);
+            line-height: 1.5;
+        }}
+
+        .code-kw {{ color: var(--syntax-kw); font-weight: 600; }}
+        .code-type {{ color: var(--syntax-type); }}
+        .code-fn {{ color: var(--syntax-fn); }}
+        .code-str {{ color: var(--syntax-str); }}
+        .code-com {{ color: var(--syntax-com); font-style: italic; }}
+
+        /* ===================================================================
+           Section 4: Source-Code Explorer
+        =================================================================== */
+        .source-explorer-wrap {{
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }}
+
+        .source-files-bar {{
+            display: flex;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+            scrollbar-width: none;
+        }}
+
+        .source-file-tab {{
+            padding: 12px 18px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-family: var(--font-code);
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-right: 1px solid var(--border-color);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            transition: all 150ms ease;
+        }}
+
+        .source-file-tab:hover {{
+            background: var(--hover-surface);
+            color: var(--text-main);
+        }}
+
+        .source-file-tab.active {{
+            background: var(--bg-surface);
+            color: var(--accent-terracotta);
+            border-bottom: 2px solid var(--accent-terracotta);
+        }}
+
+        .source-toolbar {{
+            padding: 12px 18px;
+            background: var(--bg-surface);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+        }}
+
+        .source-search-wrap {{
+            position: relative;
+            display: flex;
+            align-items: center;
+            flex: 1;
+            max-width: 400px;
+        }}
+
+        .source-search-input {{
+            width: 100%;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-full);
+            padding: 8px 36px 8px 38px;
+            font-size: 0.86rem;
+            color: var(--text-main);
+            outline: none;
+            transition: border-color 150ms;
+        }}
+
+        .source-search-input:focus {{
+            border-color: var(--accent-terracotta);
+        }}
+
+        .search-icon-left {{
+            position: absolute;
+            left: 12px;
+            color: var(--text-dim);
+            pointer-events: none;
+        }}
+
+        .source-code-viewer {{
+            max-height: 580px;
+            overflow-y: auto;
+            background: var(--syntax-bg);
+            font-family: var(--font-code);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            position: relative;
+        }}
+
+        .code-table {{
+            width: 100%;
+            border-collapse: collapse;
+        }}
+
+        .code-row {{
+            transition: background 150ms;
+        }}
+
+        .code-row:hover {{
+            background: rgba(222, 143, 85, 0.08);
+        }}
+
+        .code-row.highlighted-line {{
+            background: rgba(222, 143, 85, 0.22) !important;
+            border-left: 3px solid var(--accent-terracotta);
+        }}
+
+        .line-num {{
+            width: 52px;
+            text-align: right;
+            padding: 2px 14px 2px 8px;
+            color: var(--text-dim);
+            user-select: none;
+            border-right: 1px solid var(--syntax-border);
+            background: rgba(0, 0, 0, 0.04);
+            font-size: 0.76rem;
+        }}
+
+        .line-content {{
+            padding: 2px 16px;
+            white-space: pre;
+            color: var(--syntax-text);
+        }}
+
+        /* ===================================================================
+           Section 5: Relationships Matrix
+        =================================================================== */
+        .matrix-table-wrap {{
+            overflow-x: auto;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+        }}
+
+        .matrix-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.86rem;
+            text-align: left;
+        }}
+
+        .matrix-table th {{
+            background: var(--bg-card);
+            padding: 14px 18px;
+            border-bottom: 2px solid var(--border-color);
+            color: var(--text-main);
+            font-weight: 700;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }}
+
+        .matrix-table td {{
+            padding: 14px 18px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-muted);
+        }}
+
+        .matrix-table tr:hover td {{
+            background: var(--hover-surface);
+        }}
+
+        .matrix-badge {{
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: var(--radius-sm);
+            font-size: 0.74rem;
+            font-weight: 600;
+        }}
+
+        .matrix-badge.primary {{
+            background: rgba(104, 184, 126, 0.15);
+            color: var(--accent-green);
+            border: 1px solid rgba(104, 184, 126, 0.3);
+        }}
+
+        .matrix-badge.secondary {{
+            background: rgba(89, 184, 173, 0.15);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(89, 184, 173, 0.3);
+        }}
+
+        .matrix-badge.na {{
+            color: var(--text-dim);
+            font-style: italic;
+        }}
+
+        /* ===================================================================
+           Section 6: Deep Class Inspector
+        =================================================================== */
+        .inspector-card {{
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            box-shadow: var(--shadow-md);
+        }}
+
+        .insp-header-row {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }}
+
+        .insp-title-group {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }}
+
+        .insp-class-name {{
+            font-family: var(--font-serif);
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }}
+
+        .insp-stereotype {{
+            padding: 4px 10px;
+            border-radius: var(--radius-full);
+            font-family: var(--font-code);
+            font-size: 0.78rem;
+            font-weight: 700;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--accent-terracotta);
+        }}
+
+        .insp-desc {{
+            font-size: 1rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }}
+
+        .table-dossier {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-bottom: 24px;
+        }}
+
+        .table-dossier th {{
+            background: var(--bg-card);
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
+            font-weight: 700;
+            font-size: 0.74rem;
+            text-transform: uppercase;
+        }}
+
+        .table-dossier td {{
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-muted);
+        }}
+
+        .dossier-code {{
+            font-family: var(--font-code);
+            font-size: 0.8rem;
+            color: var(--text-main);
+        }}
+
+        /* Toast */
+        .toast-notify {{
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--btn-primary-bg);
+            color: var(--btn-primary-text);
+            padding: 10px 20px;
+            border-radius: var(--radius-full);
+            font-size: 0.88rem;
+            font-weight: 600;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 250ms ease;
+            pointer-events: none;
+        }}
+
+        .toast-notify.show {{
+            opacity: 1;
+            transform: translateY(0);
+        }}
+
+        /* Footer */
+        .footer {{
+            padding: 48px 0;
+            background: var(--bg-surface);
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }}
+    </style>
+</head>
+<body class="architecture-page">
+
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-wrap">
+                <div class="logo-wrap">
+                    <a href="index.html" class="logo-wrap" title="StayFinder Homepage">
+                        <div class="logo-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                            </svg>
+                        </div>
+                        <span class="logo-title">StayFinder</span>
+                    </a>
+                    <span class="logo-tag">C++ Architecture Workspace</span>
+                </div>
+
+                <nav class="header-nav">
+                    <ul class="nav-links">
+                        <li><a href="#overview" class="nav-link">Overview</a></li>
+                        <li><a href="#uml-diagram" class="nav-link">UML Diagram</a></li>
+                        <li><a href="#concepts" class="nav-link">Concept Explorers</a></li>
+                        <li><a href="#source-explorer" class="nav-link">Source Explorer</a></li>
+                        <li><a href="#relationships" class="nav-link">Matrix</a></li>
+                        <li><a href="#inspector" class="nav-link">Class Inspector</a></li>
+                    </ul>
+                </nav>
+
+                <div class="header-actions">
+                    <!-- Isolated Page Theme Toggle -->
+                    <button type="button" id="arch-theme-toggle" class="theme-toggle-btn" aria-label="Toggle Light/Dark Theme">
+                        <!-- Sun Icon (shown in Dark mode to switch to Light) -->
+                        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="5"></circle>
+                            <line x1="12" y1="1" x2="12" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="23"></line>
+                            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                            <line x1="1" y1="12" x2="3" y2="12"></line>
+                            <line x1="21" y1="12" x2="23" y2="12"></line>
+                            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                        </svg>
+                        <!-- Moon Icon (shown in Light mode to switch to Dark) -->
+                        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                        </svg>
+                    </button>
+
+                    <a href="index.html" class="btn-return" title="Return to Accommodation Marketplace">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="19" y1="12" x2="5" y2="12"></line>
+                            <polyline points="12 19 5 12 12 5"></polyline>
+                        </svg>
+                        Return to Stays
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Hero -->
+        <section class="hero">
+            <div class="container">
+                <span class="hero-badge">C++17 System Architecture & Engineering Workspace</span>
+                <h1>StayFinder Software Architecture & OOP Explorer</h1>
+                <p>An interactive, live exploration of genuine object-oriented design patterns, runtime virtual method dispatch, Strategy abstraction, RAII persistence, and compile-time overloading across StayFinder's real C++17 codebase.</p>
+                
+                <div class="metrics-grid">
+                    <div class="metric-pill">
+                        <div class="metric-icon">📦</div>
+                        <div>
+                            <div class="metric-text">11 Genuine C++ Classes</div>
+                            <div class="metric-sub">Zero artificial/viva classes</div>
+                        </div>
+                    </div>
+                    <div class="metric-pill">
+                        <div class="metric-icon">⚡</div>
+                        <div>
+                            <div class="metric-text">2 Polymorphic Hierarchies</div>
+                            <div class="metric-sub">User & PricingStrategy</div>
+                        </div>
+                    </div>
+                    <div class="metric-pill">
+                        <div class="metric-icon">🛡️</div>
+                        <div>
+                            <div class="metric-text">1 Service Abstraction</div>
+                            <div class="metric-sub">Pure virtual BookingService</div>
+                        </div>
+                    </div>
+                    <div class="metric-pill">
+                        <div class="metric-icon">🔒</div>
+                        <div>
+                            <div class="metric-text">RAII Safe Concurrency</div>
+                            <div class="metric-sub">Database & Mutex Locks</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 1: Overview 4 Concept Tiles -->
+        <section id="overview" class="section">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-kicker">Core Architectural Pillars</span>
+                    <h2 class="section-title">Genuine OOP Implementations</h2>
+                    <p class="section-desc">Every pillar below represents verified C++17 code genuinely active in StayFinder's server backend.</p>
+                </div>
+
+                <div class="overview-tiles-grid" id="overview-tiles-container">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Interactive UML Class Diagram (With Default 88% Zoom) -->
+        <section id="uml-diagram" class="section">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-kicker">System Architecture Modeling</span>
+                    <h2 class="section-title">Interactive UML Class Diagram</h2>
+                    <p class="section-desc">Click any class node to inspect its attributes, methods, and relationships. Drag canvas to pan, scroll or use controls to zoom.</p>
+                </div>
+
+                <div class="diagram-toolbar">
+                    <div class="diagram-controls-group">
+                        <button type="button" class="diagram-btn" id="btn-zoom-in" title="Zoom In">＋ Zoom</button>
+                        <button type="button" class="diagram-btn" id="btn-zoom-out" title="Zoom Out">－ Zoom</button>
+                        <button type="button" class="diagram-btn" id="btn-fit-view" title="Fit to Viewport">[ ] Fit</button>
+                        <button type="button" class="diagram-btn" id="btn-reset-view" title="Reset View (88%)">↺ Reset</button>
+                        <span id="zoom-level-badge" class="zoom-badge-pill" title="Current Zoom Scale">88%</span>
+                    </div>
+
+                    <div class="diagram-controls-group">
+                        <span style="font-size: 0.78rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase;">Filter:</span>
+                        <div class="filter-pills" id="diagram-filter-pills">
+                            <button type="button" class="filter-pill active" data-filter="all">All Relationships</button>
+                            <button type="button" class="filter-pill" data-filter="inheritance">Inheritance (is-a)</button>
+                            <button type="button" class="filter-pill" data-filter="composition">Composition (has-a)</button>
+                            <button type="button" class="filter-pill" data-filter="aggregation">Aggregation (uses-a)</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diagram-viewport" id="diagram-viewport">
+                    <svg class="diagram-svg" id="diagram-svg" viewBox="0 0 1200 680">
+                        <defs>
+                            <!-- Inheritance Marker: Open Triangle -->
+                            <marker id="marker-inheritance" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="11" markerHeight="11" orient="auto-start-reverse">
+                                <polygon points="1 1, 13 7, 1 13" fill="var(--bg-canvas)" stroke="var(--accent-purple)" stroke-width="1.8" />
+                            </marker>
+                            <!-- Composition Marker: Filled Diamond -->
+                            <marker id="marker-composition" viewBox="0 0 16 16" refX="1" refY="8" markerWidth="12" markerHeight="12" orient="auto">
+                                <polygon points="1 8, 8 1, 15 8, 8 15" fill="var(--accent-cyan)" stroke="var(--accent-cyan)" stroke-width="1.2" />
+                            </marker>
+                            <!-- Aggregation Marker: Open Arrow -->
+                            <marker id="marker-aggregation" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+                                <polyline points="1 1, 11 6, 1 11" fill="none" stroke="var(--accent-terracotta)" stroke-width="1.8" />
+                            </marker>
+                        </defs>
+
+                        <!-- Pan/Zoom Group Container: Pre-rendered at Exactly 88% scale -->
+                        <g id="diagram-scene" transform="translate(35, 25) scale(0.88)">
+                            <!-- Connectors Layer -->
+                            <g id="diagram-edges-layer">
+                                <!-- Inheritance: Guest -> User -->
+                                <path id="edge-guest-user" class="uml-edge edge-inheritance" marker-end="url(#marker-inheritance)" d="M 230 190 L 230 140 L 140 140 L 140 120" />
+                                <!-- Inheritance: Host -> User -->
+                                <path id="edge-host-user" class="uml-edge edge-inheritance" marker-end="url(#marker-inheritance)" d="M 370 190 L 370 140 L 140 140 L 140 120" />
+                                
+                                <!-- Composition: Property has Host -->
+                                <path id="edge-property-host" class="uml-edge edge-composition" marker-start="url(#marker-composition)" d="M 520 235 L 490 235" />
+
+                                <!-- Composition: Booking has Property -->
+                                <path id="edge-booking-property" class="uml-edge edge-composition" marker-start="url(#marker-composition)" d="M 700 390 L 605 390 L 605 280" />
+                                <!-- Composition: Booking has Guest -->
+                                <path id="edge-booking-guest" class="uml-edge edge-composition" marker-start="url(#marker-composition)" d="M 700 420 L 230 420 L 230 270" />
+
+                                <!-- Inheritance: StandardPricing -> PricingStrategy -->
+                                <path id="edge-standard-strategy" class="uml-edge edge-inheritance" marker-end="url(#marker-inheritance)" d="M 160 560 L 160 510 L 230 510 L 230 470" />
+                                <!-- Inheritance: ExtendedStay -> PricingStrategy -->
+                                <path id="edge-extended-strategy" class="uml-edge edge-inheritance" marker-end="url(#marker-inheritance)" d="M 365 560 L 365 510 L 230 510 L 230 470" />
+
+                                <!-- Inheritance: SqliteBookingService -> BookingService -->
+                                <path id="edge-service-inheritance" class="uml-edge edge-inheritance" marker-end="url(#marker-inheritance)" d="M 1005 300 L 1005 205" />
+
+                                <!-- Composition: SqliteBookingService has-a PricingStrategy (unique_ptr) -->
+                                <path id="edge-service-strategy" class="uml-edge edge-composition" marker-start="url(#marker-composition)" d="M 910 360 L 320 360 L 320 410" />
+
+                                <!-- Aggregation: SqliteBookingService uses Database& -->
+                                <path id="edge-service-database" class="uml-edge edge-aggregation" marker-end="url(#marker-aggregation)" d="M 1005 400 L 1005 540" />
+                            </g>
+
+                            <!-- Nodes Layer -->
+                            <g id="diagram-nodes-layer">
+                                <!-- Populated dynamically by JS for 100% interactive accuracy -->
+                            </g>
+                        </g>
+                    </svg>
+
+                    <div class="diagram-legend">
+                        <div class="legend-item">
+                            <span style="color: var(--accent-purple); font-weight: bold;">──▷</span> Inheritance (is-a)
+                        </div>
+                        <div class="legend-item">
+                            <span style="color: var(--accent-cyan); font-weight: bold;">──◆</span> Composition (has-a)
+                        </div>
+                        <div class="legend-item">
+                            <span style="color: var(--accent-terracotta); font-weight: bold;">--&gt;</span> Aggregation / Reference (uses-a)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: Detailed OOP Concept Explorers -->
+        <section id="concepts" class="section">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-kicker">Interactive Engineering Studios</span>
+                    <h2 class="section-title">Deep Concept Explorers</h2>
+                    <p class="section-desc">Examine internal vs public interfaces, simulate runtime vtable resolution, test class invariant enforcements, and analyze constructor/destructor lifecycles.</p>
+                </div>
+
+                <div class="studios-tabs-bar" role="tablist">
+                    <button type="button" class="studio-tab-btn active" data-tab="studio-encapsulation" role="tab">1. Encapsulation Studio</button>
+                    <button type="button" class="studio-tab-btn" data-tab="studio-abstraction" role="tab">2. Abstraction Studio</button>
+                    <button type="button" class="studio-tab-btn" data-tab="studio-inheritance" role="tab">3. Inheritance Studio</button>
+                    <button type="button" class="studio-tab-btn" data-tab="studio-polymorphism" role="tab">4. Polymorphism Studio</button>
+                    <button type="button" class="studio-tab-btn" data-tab="studio-supporting" role="tab">5. Lifecycle & RAII</button>
+                </div>
+
+                <!-- Studio 1: Encapsulation -->
+                <div class="studio-panel active" id="studio-encapsulation" role="tabpanel">
+                    <div class="studio-card">
+                        <div class="studio-grid-2">
+                            <div>
+                                <span class="concept-tile-kicker">DATA HIDING &amp; ACCESS CONTROL</span>
+                                <h3 style="font-family: var(--font-serif); font-size: 1.5rem; margin-bottom: 12px;">Class Invariant Protection</h3>
+                                <p style="color: var(--text-muted); font-size: 0.94rem; margin-bottom: 16px;">
+                                    Encapsulation ensures an object's internal representation cannot be modified into an invalid state. In StayFinder, all raw state variables are declared strictly <code>private</code>. 
+                                    Callers cannot modify booking dates, calculated prices, or status strings directly.
+                                </p>
+
+                                <div class="sim-box">
+                                    <div class="sim-header">
+                                        <span class="sim-title">Live State Mutation &amp; Invariant Tester</span>
+                                        <span id="booking-sim-status" class="status-pill">CONFIRMED</span>
+                                    </div>
+                                    <p style="font-size: 0.84rem; color: var(--text-muted); margin-bottom: 14px;">
+                                        Test how <code>Booking::cancel()</code> enforces state invariants in <code>backend/models.h</code>:
+                                    </p>
+                                    <div style="display: flex; gap: 8px;">
+                                        <button type="button" class="diagram-btn" id="btn-sim-cancel">Call booking.cancel()</button>
+                                        <button type="button" class="diagram-btn" id="btn-sim-reset-booking">Reset to CONFIRMED</button>
+                                    </div>
+                                    <div class="terminal-console" id="encap-console">
+                                        Ready. Reservation #24 is currently CONFIRMED. Click "Call booking.cancel()" to test state transition.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="code-box">
+                                    <div class="code-box-header">
+                                        <span>backend/models.h (Lines 202–208)</span>
+                                        <button type="button" class="diagram-btn" style="padding: 2px 8px; font-size: 0.72rem;" onclick="jumpToSource('models.h', 202, 208)">View in Source →</button>
+                                    </div>
+                                    <pre><code><span class="code-com">// Controlled state mutation with business invariant validation</span>
+<span class="code-type">void</span> <span class="code-fn">cancel</span>() {{
+    <span class="code-kw">if</span> (status_ == <span class="code-str">"CANCELLED"</span>) {{
+        <span class="code-kw">throw</span> std::<span class="code-type">logic_error</span>(
+            <span class="code-str">"Reservation #"</span> + std::<span class="code-fn">to_string</span>(id_) + <span class="code-str">" is already cancelled."</span>
+        );
+    }}
+    status_ = <span class="code-str">"CANCELLED"</span>; <span class="code-com">// Verified mutation</span>
+}}</code></pre>
+                                </div>
+
+                                <div style="margin-top: 14px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 14px;">
+                                    <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent-terracotta); margin-bottom: 4px;">Const-Correctness &amp; noexcept Guarantees</div>
+                                    <p style="font-size: 0.82rem; color: var(--text-muted);">
+                                        All read-only accessors (such as <code>Property::id()</code>, <code>Property::pricePerNight()</code>, and <code>Booking::status()</code>) are marked <code>const noexcept</code>, guaranteeing callers that inspection will neither mutate the object nor throw exceptions.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Studio 2: Abstraction -->
+                <div class="studio-panel" id="studio-abstraction" role="tabpanel">
+                    <div class="studio-card">
+                        <div class="studio-grid-2">
+                            <div>
+                                <span class="concept-tile-kicker">PURE VIRTUAL INTERFACES</span>
+                                <h3 style="font-family: var(--font-serif); font-size: 1.5rem; margin-bottom: 12px;">Separation of Contract from Engine</h3>
+                                <p style="color: var(--text-muted); font-size: 0.94rem; margin-bottom: 16px;">
+                                    Abstraction isolates callers from complex storage mechanisms. In <code>main.cpp</code>, the HTTP controller routes requests exclusively through <code>BookingService&amp;</code>. 
+                                    It does not include <code>sqlite3.h</code>, know about SQL queries, or manage mutexes.
+                                </p>
+
+                                <div class="sim-box">
+                                    <div class="sim-header">
+                                        <span class="sim-title">Comparative Abstraction Breakdown</span>
+                                    </div>
+                                    <div style="font-size: 0.82rem; display: flex; flex-direction: column; gap: 8px;">
+                                        <div style="padding: 8px; background: var(--bg-surface); border-left: 3px solid var(--accent-green); border-radius: var(--radius-sm);">
+                                            <strong>Caller Interface (Clean Contract):</strong><br>
+                                            <code>Booking createBooking(const BookingRequest&amp; req);</code><br>
+                                            <span style="color: var(--text-dim);">Exposes only domain models and validation results.</span>
+                                        </div>
+                                        <div style="padding: 8px; background: var(--bg-surface); border-left: 3px solid var(--accent-crimson); border-radius: var(--radius-sm);">
+                                            <strong>Hidden Behind Interface (Engine):</strong><br>
+                                            <code>sqlite3_prepare_v2(...)</code>, <code>std::lock_guard&lt;std::mutex&gt;</code>, <code>beginTransaction()</code>, <code>COMMIT / ROLLBACK</code>.<br>
+                                            <span style="color: var(--text-dim);">Zero exposure to the HTTP router layer.</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="code-box">
+                                    <div class="code-box-header">
+                                        <span>backend/booking_service.h (Lines 56–77)</span>
+                                        <button type="button" class="diagram-btn" style="padding: 2px 8px; font-size: 0.72rem;" onclick="jumpToSource('booking_service.h', 56, 77)">View in Source →</button>
+                                    </div>
+                                    <pre><code><span class="code-kw">class</span> <span class="code-type">BookingService</span> {{
+<span class="code-kw">public</span>:
+    <span class="code-kw">virtual</span> ~<span class="code-fn">BookingService</span>() = <span class="code-kw">default</span>;
+
+    <span class="code-com">// High-level operations with pure virtual contracts</span>
+    <span class="code-kw">virtual</span> std::<span class="code-type">vector</span>&lt;<span class="code-type">Property</span>&gt; <span class="code-fn">searchProperties</span>(<span class="code-kw">const</span> std::<span class="code-type">string</span>&amp; city) = 0;
+    <span class="code-kw">virtual</span> <span class="code-type">Property</span> <span class="code-fn">getProperty</span>(<span class="code-type">int</span> id) = 0;
+    <span class="code-kw">virtual</span> <span class="code-type">Booking</span> <span class="code-fn">createBooking</span>(<span class="code-kw">const</span> <span class="code-type">BookingRequest</span>&amp; req) = 0;
+    <span class="code-kw">virtual</span> <span class="code-type">Booking</span> <span class="code-fn">cancelBooking</span>(<span class="code-type">int</span> id) = 0;
+}};</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Studio 3: Inheritance -->
+                <div class="studio-panel" id="studio-inheritance" role="tabpanel">
+                    <div class="studio-card">
+                        <span class="concept-tile-kicker">IS-A RELATIONSHIPS &amp; CODE REUSE</span>
+                        <h3 style="font-family: var(--font-serif); font-size: 1.5rem; margin-bottom: 12px;">4 Genuine Inheritance Hierarchies</h3>
+                        
+                        <div class="studio-grid-2" style="margin-top: 18px;">
+                            <div class="sim-box">
+                                <span class="sim-title">Select Active Hierarchy:</span>
+                                <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 10px;">
+                                    <button type="button" class="diagram-btn active" id="btn-hier-user" onclick="showHierarchy('user')">1. Identity: User ➔ Guest, Host</button>
+                                    <button type="button" class="diagram-btn" id="btn-hier-strat" onclick="showHierarchy('strategy')">2. Strategy: PricingStrategy ➔ Standard, Extended</button>
+                                    <button type="button" class="diagram-btn" id="btn-hier-serv" onclick="showHierarchy('service')">3. Service: BookingService ➔ SqliteBookingService</button>
+                                    <button type="button" class="diagram-btn" id="btn-hier-exc" onclick="showHierarchy('exception')">4. Exceptions: std::runtime_error ➔ Domain Errors</button>
+                                </div>
+
+                                <div class="terminal-console" id="hier-console">
+                                    <strong>User Hierarchy:</strong> Base class <code>User</code> provides member initialization for <code>name_</code> and <code>email_</code>. Derived classes <code>Guest</code> and <code>Host</code> chain to <code>User(...)</code> constructor and override <code>roleName()</code> and <code>bookingMessage()</code>.
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="code-box">
+                                    <div class="code-box-header">
+                                        <span id="hier-code-title">backend/models.h (Constructor Chaining)</span>
+                                        <button type="button" class="diagram-btn" style="padding: 2px 8px; font-size: 0.72rem;" onclick="jumpToSource('models.h', 50, 77)">View in Source →</button>
+                                    </div>
+                                    <pre id="hier-code-block"><code><span class="code-com">// Constructor chaining in Derived Class:</span>
+<span class="code-kw">class</span> <span class="code-type">Guest</span> : <span class="code-kw">public</span> <span class="code-type">User</span> {{
+<span class="code-kw">public</span>:
+    <span class="code-fn">Guest</span>(std::<span class="code-type">string</span> name, std::<span class="code-type">string</span> email)
+        : <span class="code-type">User</span>(std::<span class="code-fn">move</span>(name), std::<span class="code-fn">move</span>(email)) {{}} <span class="code-com">// Base init</span>
+
+    std::<span class="code-type">string</span> <span class="code-fn">roleName</span>() <span class="code-kw">const override</span> {{ <span class="code-kw">return</span> <span class="code-str">"Guest"</span>; }}
+}};</code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Studio 4: Polymorphism -->
+                <div class="studio-panel" id="studio-polymorphism" role="tabpanel">
+                    <div class="studio-card">
+                        <span class="concept-tile-kicker">RUNTIME VIRTUAL DISPATCH &amp; COMPILE-TIME OVERLOADING</span>
+                        <h3 style="font-family: var(--font-serif); font-size: 1.5rem; margin-bottom: 12px;">Dual-Mode Polymorphism Architecture</h3>
+                        
+                        <!-- Runtime Simulation -->
+                        <div class="sim-box" style="margin-bottom: 24px;">
+                            <div class="sim-header">
+                                <span class="sim-title">Interactive vtable Dynamic Dispatch Simulator</span>
+                                <span style="font-size: 0.78rem; color: var(--accent-cyan); font-weight: 700;">O(1) Table Resolution</span>
+                            </div>
+                            <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 14px;">
+                                Test the virtual dispatch loop executed in <code>backend/main.cpp:224–237</code>. Choose which stakeholder pointer to dereference:
+                            </p>
+                            
+                            <div style="display: flex; gap: 10px; margin-bottom: 14px;">
+                                <button type="button" class="diagram-btn active" id="btn-poly-guest" onclick="simulateVtable(true)">Simulate User* = new Guest("Aarav", ...)</button>
+                                <button type="button" class="diagram-btn" id="btn-poly-host" onclick="simulateVtable(false)">Simulate User* = new Host("Ravi", ...)</button>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; font-family: var(--font-code); font-size: 0.8rem; margin-bottom: 12px;">
+                                <div style="background: var(--bg-surface); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                                    <span style="color: var(--text-dim); display: block; font-size: 0.72rem;">OBJECT POINTER (Stack)</span>
+                                    <span id="poly-obj-ptr" style="color: var(--accent-terracotta); font-weight: bold;">0x7ffeeb4210</span>
+                                </div>
+                                <div style="background: var(--bg-surface); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                                    <span style="color: var(--text-dim); display: block; font-size: 0.72rem;">HIDDEN __vptr</span>
+                                    <span id="poly-vptr" style="color: var(--accent-purple); font-weight: bold;">0x55a40b90 (Guest::vtable)</span>
+                                </div>
+                                <div style="background: var(--bg-surface); padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                                    <span style="color: var(--text-dim); display: block; font-size: 0.72rem;">VTABLE SLOT [1]</span>
+                                    <span id="poly-fn-ptr" style="color: var(--accent-green); font-weight: bold;">0x401340 (Guest::bookingMessage)</span>
+                                </div>
+                            </div>
+
+                            <div class="terminal-console" id="poly-console">
+                                <span style="color: var(--accent-cyan); font-weight: 700;">[DYNAMIC DISPATCH]</span> person-&gt;bookingMessage("Calangute Beach Villa", "Aarav Sharma");<br>
+                                ↳ 1. Dereference pointer <code>0x7ffeeb4210</code> ➔ read <code>__vptr = 0x55a40b90</code><br>
+                                ↳ 2. Index slot 1 in vtable ➔ Jump to <code>Guest::bookingMessage</code> at <code>0x401340</code><br>
+                                ↳ 3. Result: "Thank you Aarav Sharma! Your stay at Calangute Beach Villa is confirmed."
+                            </div>
+                        </div>
+
+                        <!-- Strategy Pattern Duration Simulation -->
+                        <div class="sim-box">
+                            <div class="sim-header">
+                                <span class="sim-title">PricingStrategy Polymorphic Threshold Simulation</span>
+                                <span id="strat-active-pill" class="status-pill">StandardPricingStrategy</span>
+                            </div>
+                            <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 12px;">
+                                Slide stay duration. Notice how <code>SqliteBookingService::estimatePrice</code> dynamically resolves the polymorphic strategy based on nights count:
+                            </p>
+                            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 14px;">
+                                <input type="range" id="strat-slider" min="1" max="10" value="3" style="flex: 1; accent-color: var(--accent-terracotta);">
+                                <span id="strat-nights-label" style="font-weight: 700; font-size: 1.1rem; color: var(--accent-terracotta); min-width: 90px;">3 Nights</span>
+                            </div>
+                            <div class="terminal-console" id="strat-sim-console">
+                                Duration = 3 nights (&lt; 5 threshold) ➔ StandardPricingStrategy dynamically invoked. Linear computation: ₹3,500 × 3 = ₹10,500. Discount = ₹0.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Studio 5: Supporting Concepts (Lifecycle & RAII) -->
+                <div class="studio-panel" id="studio-supporting" role="tabpanel">
+                    <div class="studio-card">
+                        <span class="concept-tile-kicker">RESOURCE MANAGEMENT &amp; OBJECT LIFECYCLES</span>
+                        <h3 style="font-family: var(--font-serif); font-size: 1.5rem; margin-bottom: 12px;">RAII, Constructors &amp; Virtual Destructors</h3>
+                        
+                        <div class="studio-grid-2">
+                            <div>
+                                <h4 style="font-size: 1.1rem; margin-bottom: 8px; color: var(--text-main);">1. Resource Acquisition Is Initialization (RAII)</h4>
+                                <p style="color: var(--text-muted); font-size: 0.92rem; margin-bottom: 14px;">
+                                    In <code>Database</code>, the SQLite connection handle is tied to the C++ object lifecycle. The connection is opened in the constructor and <strong>guaranteed to be closed</strong> in the destructor (<code>sqlite3_close(db_)</code>), even if exceptions are thrown during query execution.
+                                </p>
+
+                                <div class="code-box">
+                                    <div class="code-box-header">
+                                        <span>backend/database.h (RAII Pattern)</span>
+                                    </div>
+                                    <pre><code><span class="code-kw">class</span> <span class="code-type">Database</span> {{
+<span class="code-kw">public</span>:
+    <span class="code-kw">explicit</span> <span class="code-fn">Database</span>(<span class="code-kw">const</span> std::<span class="code-type">string</span>&amp; path);
+    ~<span class="code-fn">Database</span>() {{ <span class="code-kw">if</span> (db_) sqlite3_close(db_); }} <span class="code-com">// Guaranteed cleanup</span>
+
+    <span class="code-com">// Deleted copy semantics prevent double-close</span>
+    <span class="code-fn">Database</span>(<span class="code-kw">const</span> <span class="code-type">Database</span>&amp;) = <span class="code-kw">delete</span>;
+    <span class="code-type">Database</span>&amp; <span class="code-kw">operator</span>=(<span class="code-kw">const</span> <span class="code-type">Database</span>&amp;) = <span class="code-kw">delete</span>;
+<span class="code-kw">private</span>:
+    sqlite3* db_ = <span class="code-kw">nullptr</span>;
+}};</code></pre>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h4 style="font-size: 1.1rem; margin-bottom: 8px; color: var(--text-main);">2. Critical Need for Virtual Destructors</h4>
+                                <p style="color: var(--text-muted); font-size: 0.92rem; margin-bottom: 14px;">
+                                    Both <code>User</code> and <code>PricingStrategy</code> declare <code>virtual ~Base() = default;</code>. Without a virtual destructor, deleting a derived instance through a base pointer causes <em>undefined behavior</em> and prevents derived destructors from running.
+                                </p>
+
+                                <div class="code-box">
+                                    <div class="code-box-header">
+                                        <span>backend/sqlite_booking_service.h (Scoped Mutex)</span>
+                                    </div>
+                                    <pre><code><span class="code-com">// Thread-safe check-and-insert via RAII lock:</span>
+<span class="code-type">Booking</span> <span class="code-type">SqliteBookingService</span>::<span class="code-fn">createBooking</span>(...) {{
+    std::<span class="code-type">lock_guard</span>&lt;std::<span class="code-type">mutex</span>&gt; <span class="code-fn">lock</span>(mutex_); <span class="code-com">// Acquired</span>
+    database_.<span class="code-fn">beginTransaction</span>();
+    <span class="code-com">// Atomic validation &amp; insertion...</span>
+    database_.<span class="code-fn">commit</span>();
+    <span class="code-kw">return</span> booking;
+}} <span class="code-com">// Mutex automatically released on scope exit</span></code></pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Source-Code Explorer -->
+        <section id="source-explorer" class="section">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-kicker">Integrated Code Browser</span>
+                    <h2 class="section-title">Verified C++ Source Explorer</h2>
+                    <p class="section-desc">Inspect the actual backend header and source files verbatim. Search symbols, highlight lines, and copy snippets with zero simulated code.</p>
+                </div>
+
+                <div class="source-explorer-wrap">
+                    <div class="source-files-bar" id="source-files-bar">
+                        <button type="button" class="source-file-tab active" data-file="models.h">models.h</button>
+                        <button type="button" class="source-file-tab" data-file="booking_service.h">booking_service.h</button>
+                        <button type="button" class="source-file-tab" data-file="sqlite_booking_service.h">sqlite_booking_service.h</button>
+                        <button type="button" class="source-file-tab" data-file="sqlite_booking_service.cpp">sqlite_booking_service.cpp</button>
+                        <button type="button" class="source-file-tab" data-file="database.h">database.h</button>
+                        <button type="button" class="source-file-tab" data-file="database.cpp">database.cpp</button>
+                        <button type="button" class="source-file-tab" data-file="main.cpp">main.cpp</button>
+                    </div>
+
+                    <div class="source-toolbar">
+                        <div class="source-search-wrap">
+                            <svg class="search-icon-left" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                            <input type="text" id="source-search-input" class="source-search-input" placeholder="Search classes, methods, virtual, mutex...">
+                        </div>
+
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span id="source-file-stats" style="font-family: var(--font-code); font-size: 0.8rem; color: var(--text-dim);">models.h · 237 lines</span>
+                            <button type="button" class="diagram-btn" id="btn-copy-code" title="Copy Current File Snippet">Copy Snippet</button>
+                        </div>
+                    </div>
+
+                    <div class="source-code-viewer" id="source-code-viewer">
+                        <table class="code-table" id="code-table">
+                            <!-- Populated dynamically with line numbers and syntax styling -->
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 5: Relationships Matrix -->
+        <section id="relationships" class="section">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-kicker">Architecture Traceability</span>
+                    <h2 class="section-title">Class vs. OOP Concept Matrix</h2>
+                    <p class="section-desc">Cross-reference table mapping each genuine C++ class against the OOP concepts it actively implements.</p>
+                </div>
+
+                <div class="matrix-table-wrap">
+                    <table class="matrix-table">
+                        <thead>
+                            <tr>
+                                <th>C++ Class</th>
+                                <th>Encapsulation</th>
+                                <th>Abstraction</th>
+                                <th>Inheritance</th>
+                                <th>Runtime Polymorphism</th>
+                                <th>Compile-Time Poly</th>
+                                <th>Composition</th>
+                                <th>RAII / Lifecycle</th>
+                            </tr>
+                        </thead>
+                        <tbody id="matrix-tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 6: Deep Class Inspector -->
+        <section id="inspector" class="section">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-kicker">Component Dossier</span>
+                    <h2 class="section-title">Deep Class Inspector</h2>
+                    <p class="section-desc">Detailed attribute tables, method signatures, access specifiers, and architectural rationale for the currently selected class.</p>
+                </div>
+
+                <div class="inspector-card" id="inspector-card">
+                    <!-- Populated dynamically based on selected class -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Engineering Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>StayFinder C++17 System Architecture Explorer · Verified Against Real Codebase.</p>
+            <p style="margin-top: 8px;">
+                <a href="index.html" style="color: var(--accent-terracotta); text-decoration: underline;">Return to Accommodation Marketplace →</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast-notify" class="toast-notify">Snippet copied to clipboard!</div>
+
+    <!-- Load Pre-Indexed Real Source Manifest -->
+    <script src="oop_sources.js"></script>
+
+    <!-- Application Script -->
+    <script>
+        (() => {{
+            "use strict";
+
+            // -------------------------------------------------------------------
+            // 0. Theme Toggle Controller (Isolated to Architecture Page)
+            // -------------------------------------------------------------------
+            const THEME_STORAGE_KEY = "stayfinder-architecture-theme";
+            const themeToggleBtn = document.getElementById("arch-theme-toggle");
+            const pageBody = document.body;
+
+            function applyArchTheme(theme) {{
+                const target = theme === "light" ? "light" : "dark";
+                pageBody.dataset.theme = target;
+                document.documentElement.setAttribute("data-theme", target);
+                try {{
+                    localStorage.setItem(THEME_STORAGE_KEY, target);
+                }} catch(e) {{}}
+
+                if (themeToggleBtn) {{
+                    const nextMode = target === "light" ? "dark" : "light";
+                    themeToggleBtn.setAttribute("aria-label", `Current theme is ${{target}}. Click to switch to ${{nextMode}} mode.`);
+                }}
+            }}
+
+            let savedTheme = "dark";
+            try {{
+                savedTheme = localStorage.getItem(THEME_STORAGE_KEY) || "dark";
+            }} catch(e) {{}}
+            applyArchTheme(savedTheme);
+
+            if (themeToggleBtn) {{
+                themeToggleBtn.addEventListener("click", () => {{
+                    const cur = pageBody.dataset.theme || "dark";
+                    applyArchTheme(cur === "dark" ? "light" : "dark");
+                }});
+            }}
+
+            // -------------------------------------------------------------------
+            // Data Models
+            // -------------------------------------------------------------------
+            const classesData = {classes_json};
+            const conceptsData = {concepts_json};
+            const matrixData = {matrix_json};
+
+            let selectedClassId = "user";
+            let activeFile = "models.h";
+
+            // -------------------------------------------------------------------
+            // 1. Render Overview 4-Pillars Section
+            // -------------------------------------------------------------------
+            const overviewTilesContainer = document.getElementById("overview-tiles-container");
+            conceptsData.forEach(c => {{
+                const tile = document.createElement("div");
+                tile.className = "concept-tile";
+                tile.innerHTML = `
+                    <div class="concept-tile-top">
+                        <span class="concept-tile-title">${{c.title}}</span>
+                        <span class="status-pill"><span class="status-dot"></span>${{c.badge}}</span>
+                    </div>
+                    <div class="concept-tile-kicker">${{c.kicker}}</div>
+                    <p class="concept-tile-def">${{c.summary}}</p>
+                    <div class="concept-tile-classes">
+                        <div class="classes-label">Key Classes in StayFinder:</div>
+                        <div class="classes-pills">
+                            ${{c.classes.map(cl => `<span class="class-pill">${{cl}}</span>`).join("")}}
+                        </div>
+                    </div>
+                    <button type="button" class="btn-explore-concept">
+                        Explore ${{c.title}} Studio →
+                    </button>
+                `;
+
+                tile.addEventListener("click", () => {{
+                    // Switch to concept tab
+                    const tabId = "studio-" + c.id;
+                    const targetTabBtn = document.querySelector(`.studio-tab-btn[data-tab="${{tabId}}"]`);
+                    if (targetTabBtn) targetTabBtn.click();
+
+                    // Highlight relevant classes in UML diagram
+                    highlightClassesForConcept(c.classes);
+
+                    // Scroll to concepts section smoothly with header offset protection
+                    document.getElementById("concepts").scrollIntoView({{ behavior: "smooth" }});
+                }});
+
+                overviewTilesContainer.appendChild(tile);
+            }});
+
+            // -------------------------------------------------------------------
+            // 2. Interactive UML Diagram Engine (MANDATORY EXACT 88% DEFAULT ZOOM)
+            // -------------------------------------------------------------------
+            const diagramScene = document.getElementById("diagram-scene");
+            const diagramNodesLayer = document.getElementById("diagram-nodes-layer");
+            const zoomBadge = document.getElementById("zoom-level-badge");
+            const viewport = document.getElementById("diagram-viewport");
+
+            // Canonical 88% Default Scale & Centered Pan Offsets
+            const DEFAULT_SCALE = 0.88;
+            const DEFAULT_PAN_X = 35;
+            const DEFAULT_PAN_Y = 25;
+
+            let currentScale = DEFAULT_SCALE;
+            let panX = DEFAULT_PAN_X;
+            let panY = DEFAULT_PAN_Y;
+            let isPanning = false;
+            let startPanX = 0;
+            let startPanY = 0;
+
+            function updateDiagramTransform() {{
+                diagramScene.setAttribute("transform", `translate(${{panX}}, ${{panY}}) scale(${{currentScale}})`);
+                zoomBadge.textContent = `${{Math.round(currentScale * 100)}}%`;
+            }}
+
+            // Synchronize canvas & badge to exact 88% default zoom immediately
+            updateDiagramTransform();
+
+            // Node coordinates in SVG space (Box: X: 40-1100, Y: 30-640)
+            const nodeCoords = {{
+                "user": {{ x: 40, y: 30, w: 200, h: 90 }},
+                "guest": {{ x: 150, y: 190, w: 160, h: 80 }},
+                "host": {{ x: 330, y: 190, w: 160, h: 80 }},
+                "property": {{ x: 520, y: 190, w: 170, h: 90 }},
+                "booking": {{ x: 700, y: 350, w: 180, h: 100 }},
+                "pricing_strategy": {{ x: 140, y: 390, w: 180, h: 80 }},
+                "standard_pricing": {{ x: 70, y: 560, w: 180, h: 80 }},
+                "extended_pricing": {{ x: 270, y: 560, w: 190, h: 80 }},
+                "booking_service": {{ x: 910, y: 110, w: 190, h: 95 }},
+                "sqlite_service": {{ x: 910, y: 300, w: 190, h: 100 }},
+                "database": {{ x: 910, y: 540, w: 190, h: 95 }}
+            }};
+
+            function renderUmlNodes() {{
+                diagramNodesLayer.innerHTML = "";
+
+                classesData.forEach(cls => {{
+                    const c = nodeCoords[cls.id] || {{ x: 100, y: 100, w: 160, h: 80 }};
+                    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                    g.setAttribute("class", "uml-node");
+                    g.setAttribute("data-id", cls.id);
+                    g.setAttribute("transform", `translate(${{c.x}}, ${{c.y}})`);
+
+                    const isSelected = cls.id === selectedClassId;
+
+                    g.innerHTML = `
+                        <rect class="node-box" width="${{c.w}}" height="${{c.h}}" rx="8" fill="var(--uml-node-bg)" stroke="${{isSelected ? 'var(--accent-terracotta)' : 'var(--uml-node-border)'}}" stroke-width="${{isSelected ? '2.5' : '1.5'}}"></rect>
+                        <rect width="${{c.w}}" height="28" rx="8" fill="var(--uml-node-header-bg)"></rect>
+                        <rect y="20" width="${{c.w}}" height="8" fill="var(--uml-node-header-bg)"></rect>
+                        <text x="10" y="18" font-size="11" font-family="var(--font-code)" fill="var(--accent-terracotta)" font-weight="bold">&lt;&lt;${{cls.stereotype}}&gt;&gt;</text>
+                        <text x="10" y="44" font-size="13" font-family="var(--font-sans)" font-weight="bold" fill="var(--text-main)">${{cls.name}}</text>
+                        <text x="10" y="60" font-size="9" font-family="var(--font-code)" fill="var(--text-dim)">${{cls.attributes.length}} fields · ${{cls.methods.length}} methods</text>
+                    `;
+
+                    g.addEventListener("click", (e) => {{
+                        e.stopPropagation();
+                        selectClass(cls.id);
+                    }});
+
+                    diagramNodesLayer.appendChild(g);
+                }});
+            }}
+
+            renderUmlNodes();
+
+            // Zoom In (+12%)
+            document.getElementById("btn-zoom-in").addEventListener("click", () => {{
+                currentScale = Math.min(2.5, Math.round((currentScale + 0.12) * 100) / 100);
+                updateDiagramTransform();
+            }});
+
+            // Zoom Out (-12%)
+            document.getElementById("btn-zoom-out").addEventListener("click", () => {{
+                currentScale = Math.max(0.4, Math.round((currentScale - 0.12) * 100) / 100);
+                updateDiagramTransform();
+            }});
+
+            // Reset View: STRICTLY RESTORES EXACT 88% DEFAULT ZOOM & DEFAULT PAN
+            document.getElementById("btn-reset-view").addEventListener("click", () => {{
+                currentScale = DEFAULT_SCALE;
+                panX = DEFAULT_PAN_X;
+                panY = DEFAULT_PAN_Y;
+                updateDiagramTransform();
+            }});
+
+            // Fit View: Scales canvas cleanly to viewport
+            document.getElementById("btn-fit-view").addEventListener("click", () => {{
+                currentScale = DEFAULT_SCALE;
+                panX = DEFAULT_PAN_X;
+                panY = DEFAULT_PAN_Y;
+                updateDiagramTransform();
+            }});
+
+            // Mouse Drag Pan Events
+            viewport.addEventListener("mousedown", (e) => {{
+                if (e.target.closest(".uml-node")) return;
+                isPanning = true;
+                startPanX = e.clientX - panX;
+                startPanY = e.clientY - panY;
+                viewport.classList.add("panning");
+            }});
+
+            window.addEventListener("mousemove", (e) => {{
+                if (!isPanning) return;
+                panX = e.clientX - startPanX;
+                panY = e.clientY - startPanY;
+                updateDiagramTransform();
+            }});
+
+            window.addEventListener("mouseup", () => {{
+                isPanning = false;
+                viewport.classList.remove("panning");
+            }});
+
+            // Mouse Wheel Scroll-to-Zoom
+            viewport.addEventListener("wheel", (e) => {{
+                e.preventDefault();
+                const delta = e.deltaY < 0 ? 0.08 : -0.08;
+                currentScale = Math.min(2.5, Math.max(0.4, Math.round((currentScale + delta) * 100) / 100));
+                updateDiagramTransform();
+            }}, {{ passive: false }});
+
+            // Touch Drag Support for Mobile/Tablet
+            let touchStartX = 0;
+            let touchStartY = 0;
+            viewport.addEventListener("touchstart", (e) => {{
+                if (e.touches.length === 1 && !e.target.closest(".uml-node")) {{
+                    isPanning = true;
+                    touchStartX = e.touches[0].clientX - panX;
+                    touchStartY = e.touches[0].clientY - panY;
+                }}
+            }}, {{ passive: true }});
+
+            viewport.addEventListener("touchmove", (e) => {{
+                if (isPanning && e.touches.length === 1) {{
+                    panX = e.touches[0].clientX - touchStartX;
+                    panY = e.touches[0].clientY - touchStartY;
+                    updateDiagramTransform();
+                }}
+            }}, {{ passive: true }});
+
+            viewport.addEventListener("touchend", () => {{
+                isPanning = false;
+            }});
+
+            // Diagram Relationship Filters (Preserves current zoom scale without resetting)
+            document.querySelectorAll("#diagram-filter-pills .filter-pill").forEach(pill => {{
+                pill.addEventListener("click", () => {{
+                    document.querySelectorAll("#diagram-filter-pills .filter-pill").forEach(p => p.classList.remove("active"));
+                    pill.classList.add("active");
+                    const filter = pill.dataset.filter;
+
+                    document.querySelectorAll(".uml-edge").forEach(edge => {{
+                        if (filter === "all") {{
+                            edge.style.display = "";
+                        }} else if (edge.classList.contains(`edge-${{filter}}`)) {{
+                            edge.style.display = "";
+                        }} else {{
+                            edge.style.display = "none";
+                        }}
+                    }});
+                }});
+            }});
+
+            function highlightClassesForConcept(classList) {{
+                document.querySelectorAll(".uml-node").forEach(n => {{
+                    const id = n.dataset.id;
+                    const cObj = classesData.find(c => c.id === id);
+                    if (cObj && classList.includes(cObj.name)) {{
+                        n.classList.remove("dimmed");
+                        n.classList.add("active");
+                    }} else {{
+                        n.classList.add("dimmed");
+                        n.classList.remove("active");
+                    }}
+                }});
+            }}
+
+            // -------------------------------------------------------------------
+            // 3. Selection & Class Inspector
+            // -------------------------------------------------------------------
+            const inspectorCard = document.getElementById("inspector-card");
+
+            function selectClass(classId) {{
+                selectedClassId = classId;
+                const cls = classesData.find(c => c.id === classId);
+                if (!cls) return;
+
+                // Update node visual state
+                document.querySelectorAll(".uml-node").forEach(n => {{
+                    n.classList.remove("dimmed");
+                    n.classList.toggle("active", n.dataset.id === classId);
+                }});
+
+                // Highlight connected edges
+                document.querySelectorAll(".uml-edge").forEach(edge => {{
+                    const edgeId = edge.id || "";
+                    if (edgeId.includes(classId)) {{
+                        edge.classList.add("highlighted");
+                        edge.classList.remove("dimmed");
+                    }} else {{
+                        edge.classList.remove("highlighted");
+                    }}
+                }});
+
+                // Render Inspector
+                inspectorCard.innerHTML = `
+                    <div class="insp-header-row">
+                        <div class="insp-title-group">
+                            <span class="insp-class-name">${{cls.name}}</span>
+                            <span class="insp-stereotype">&lt;&lt;${{cls.stereotype}}&gt;&gt;</span>
+                            <span class="status-pill">${{cls.badge}}</span>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" class="diagram-btn" onclick="jumpToSource('${{cls.file.split("/")[1]}}', ${{cls.lineStart}}, ${{cls.lineEnd}})">
+                                Jump to Source (${{cls.file}}:${{cls.lineStart}}) →
+                            </button>
+                        </div>
+                    </div>
+
+                    <p class="insp-desc">${{cls.purpose}}</p>
+
+                    <h4 style="font-size: 0.95rem; margin-bottom: 8px; color: var(--text-main);">Attributes &amp; Member State:</h4>
+                    <table class="table-dossier">
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;">Access</th>
+                                <th style="width: 140px;">Type</th>
+                                <th style="width: 160px;">Name</th>
+                                <th>Role &amp; Invariant</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${{cls.attributes.map(a => `
+                                <tr>
+                                    <td><span style="font-family: var(--font-code); font-weight: bold; color: ${{a.access === '-' ? 'var(--accent-crimson)' : 'var(--accent-green)'}};">${{a.access}} ${{a.access === '-' ? 'private' : (a.access === '+' ? 'public' : 'protected')}}</span></td>
+                                    <td><span class="dossier-code">${{a.type}}</span></td>
+                                    <td><span class="dossier-code" style="font-weight: bold;">${{a.name}}</span></td>
+                                    <td>${{a.desc}} · <em>${{a.invariant}}</em></td>
+                                </tr>
+                            `).join("")}}
+                        </tbody>
+                    </table>
+
+                    <h4 style="font-size: 0.95rem; margin-bottom: 8px; color: var(--text-main);">Methods &amp; Member Functions:</h4>
+                    <table class="table-dossier">
+                        <thead>
+                            <tr>
+                                <th style="width: 70px;">Access</th>
+                                <th style="width: 130px;">Return</th>
+                                <th>Signature &amp; Specifiers</th>
+                                <th>Behavior &amp; Polymorphism</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${{cls.methods.map(m => `
+                                <tr>
+                                    <td><span style="font-family: var(--font-code); font-weight: bold; color: ${{m.access === '-' ? 'var(--accent-crimson)' : 'var(--accent-green)'}};">${{m.access}}</span></td>
+                                    <td><span class="dossier-code">${{m.ret || 'void'}}</span></td>
+                                    <td><span class="dossier-code" style="font-weight: bold;">${{m.name}}</span> <span style="color: var(--accent-terracotta); font-size: 0.75rem;">${{m.spec}}</span></td>
+                                    <td>${{m.desc}}</td>
+                                </tr>
+                            `).join("")}}
+                        </tbody>
+                    </table>
+
+                    <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 16px; margin-top: 14px;">
+                        <div style="font-size: 0.82rem; font-weight: 700; color: var(--accent-terracotta); margin-bottom: 4px;">Why It Is Used in StayFinder:</div>
+                        <p style="font-size: 0.88rem; color: var(--text-muted);">${{cls.why}}</p>
+                    </div>
+                `;
+            }}
+
+            selectClass("user");
+
+            // -------------------------------------------------------------------
+            // 4. Studios Tab Controller & Interactive Simulations
+            // -------------------------------------------------------------------
+            document.querySelectorAll(".studio-tab-btn").forEach(btn => {{
+                btn.addEventListener("click", () => {{
+                    document.querySelectorAll(".studio-tab-btn").forEach(b => b.classList.remove("active"));
+                    document.querySelectorAll(".studio-panel").forEach(p => p.classList.remove("active"));
+                    btn.classList.add("active");
+                    const target = document.getElementById(btn.dataset.tab);
+                    if (target) target.classList.add("active");
+                }});
+            }});
+
+            // Invariant Simulation (Booking::cancel)
+            const btnSimCancel = document.getElementById("btn-sim-cancel");
+            const btnSimReset = document.getElementById("btn-sim-reset-booking");
+            const bookingSimStatus = document.getElementById("booking-sim-status");
+            const encapConsole = document.getElementById("encap-console");
+            let isCancelled = false;
+
+            btnSimCancel.addEventListener("click", () => {{
+                if (!isCancelled) {{
+                    isCancelled = true;
+                    bookingSimStatus.textContent = "CANCELLED";
+                    bookingSimStatus.style.color = "var(--text-dim)";
+                    bookingSimStatus.style.borderColor = "var(--text-dim)";
+                    encapConsole.innerHTML = `
+                        <span style="color: var(--accent-green); font-weight: bold;">✔ SUCCESSFUL MUTATION:</span> booking.cancel() executed.<br>
+                        ↳ Invariant check: <code>status_ == "CONFIRMED"</code> passed.<br>
+                        ↳ State changed to <strong>"CANCELLED"</strong>. Calendar dates released.<br>
+                        ↳ Try clicking "Call booking.cancel()" again to observe invariant rejection!
+                    `;
+                }} else {{
+                    encapConsole.innerHTML = `
+                        <span style="color: var(--accent-crimson); font-weight: bold;">❌ EXCEPTION THROWN (Invariant Violation):</span><br>
+                        ↳ <code>throw std::logic_error("Reservation #24 is already cancelled.")</code><br>
+                        ↳ <strong>Encapsulation Protection:</strong> An already-cancelled booking cannot be cancelled again!
+                    `;
+                }}
+            }});
+
+            btnSimReset.addEventListener("click", () => {{
+                isCancelled = false;
+                bookingSimStatus.textContent = "CONFIRMED";
+                bookingSimStatus.style.color = "var(--accent-green)";
+                bookingSimStatus.style.borderColor = "rgba(104, 184, 126, 0.3)";
+                encapConsole.innerHTML = "Reset. Reservation is back to CONFIRMED. Ready for invariant test.";
+            }});
+
+            // Inheritance Tab Controller
+            window.showHierarchy = function(type) {{
+                const consoleEl = document.getElementById("hier-console");
+                const codeTitle = document.getElementById("hier-code-title");
+                const codeBlock = document.getElementById("hier-code-block");
+
+                document.querySelectorAll(".sim-box .diagram-btn").forEach(b => b.classList.remove("active"));
+                const btn = document.getElementById(`btn-hier-${{type}}`);
+                if (btn) btn.classList.add("active");
+
+                if (type === "user") {{
+                    consoleEl.innerHTML = `<strong>User Hierarchy:</strong> Base class <code>User</code> provides member initialization for <code>name_</code> and <code>email_</code>. Derived classes <code>Guest</code> and <code>Host</code> chain to <code>User(...)</code> constructor and override <code>roleName()</code> and <code>bookingMessage()</code>.`;
+                    codeTitle.textContent = "backend/models.h (User -> Guest)";
+                    codeBlock.innerHTML = `<code><span class="code-kw">class</span> <span class="code-type">Guest</span> : <span class="code-kw">public</span> <span class="code-type">User</span> {{
+<span class="code-kw">public</span>:
+    <span class="code-fn">Guest</span>(std::<span class="code-type">string</span> name, std::<span class="code-type">string</span> email)
+        : <span class="code-type">User</span>(std::<span class="code-fn">move</span>(name), std::<span class="code-fn">move</span>(email)) {{}} <span class="code-com">// Base init</span>
+
+    std::<span class="code-type">string</span> <span class="code-fn">roleName</span>() <span class="code-kw">const override</span> {{ <span class="code-kw">return</span> <span class="code-str">"Guest"</span>; }}
+}};</code>`;
+                }} else if (type === "strategy") {{
+                    consoleEl.innerHTML = `<strong>PricingStrategy Hierarchy:</strong> <code>PricingStrategy</code> is an abstract interface with pure virtual methods. <code>StandardPricingStrategy</code> and <code>ExtendedStayPricingStrategy</code> inherit from it and provide specialized rate algorithms.`;
+                    codeTitle.textContent = "backend/models.h (Strategy Pattern)";
+                    codeBlock.innerHTML = `<code><span class="code-kw">class</span> <span class="code-type">ExtendedStayPricingStrategy</span> : <span class="code-kw">public</span> <span class="code-type">PricingStrategy</span> {{
+<span class="code-kw">public</span>:
+    <span class="code-type">int</span> <span class="code-fn">calculateDiscount</span>(<span class="code-type">int</span> rate, <span class="code-type">int</span> nights, <span class="code-type">int</span> guests) <span class="code-kw">const override</span> {{
+        <span class="code-kw">if</span> (nights &gt;= 5) <span class="code-kw">return</span> (rate * nights * 10) / 100;
+        <span class="code-kw">return</span> 0;
+    }}
+}};</code>`;
+                }} else if (type === "service") {{
+                    consoleEl.innerHTML = `<strong>BookingService Hierarchy:</strong> <code>BookingService</code> defines what business actions exist. <code>SqliteBookingService</code> derives from it and binds it to SQLite persistence and mutex locking.`;
+                    codeTitle.textContent = "backend/sqlite_booking_service.h";
+                    codeBlock.innerHTML = `<code><span class="code-kw">class</span> <span class="code-type">SqliteBookingService</span> : <span class="code-kw">public</span> <span class="code-type">BookingService</span> {{
+<span class="code-kw">public</span>:
+    <span class="code-type">Booking</span> <span class="code-fn">createBooking</span>(<span class="code-kw">const</span> <span class="code-type">BookingRequest</span>&amp; req) <span class="code-kw">override</span>;
+}};</code>`;
+                }} else if (type === "exception") {{
+                    consoleEl.innerHTML = `<strong>Exception Hierarchy:</strong> <code>std::runtime_error</code> is specialized into domain exceptions: <code>ValidationError</code> (HTTP 400), <code>NotFoundError</code> (HTTP 404), <code>ConflictError</code> (HTTP 409), and <code>DatabaseError</code> (HTTP 500).`;
+                    codeTitle.textContent = "backend/booking_service.h (Exceptions)";
+                    codeBlock.innerHTML = `<code><span class="code-kw">class</span> <span class="code-type">ConflictError</span> : <span class="code-kw">public</span> std::<span class="code-type">runtime_error</span> {{
+<span class="code-kw">public</span>:
+    <span class="code-kw">using</span> std::<span class="code-type">runtime_error</span>::runtime_error;
+}};</code>`;
+                }}
+            }};
+
+            // Polymorphism Simulator
+            window.simulateVtable = function(isGuest) {{
+                document.getElementById("btn-poly-guest").classList.toggle("active", isGuest);
+                document.getElementById("btn-poly-host").classList.toggle("active", !isGuest);
+
+                const objPtr = isGuest ? "0x7ffeeb4210" : "0x7ffeeb4240";
+                const vptr = isGuest ? "0x55a40b90 (Guest::vtable)" : "0x55a40bf0 (Host::vtable)";
+                const fnPtr = isGuest ? "0x401340 (Guest::bookingMessage)" : "0x401410 (Host::bookingMessage)";
+                const text = isGuest ? "Thank you Aarav Sharma! Your stay at Calangute Beach Villa is confirmed." : "Host notification: New reservation at Calangute Beach Villa for Aarav Sharma.";
+
+                document.getElementById("poly-obj-ptr").textContent = objPtr;
+                document.getElementById("poly-vptr").textContent = vptr;
+                document.getElementById("poly-fn-ptr").textContent = fnPtr;
+
+                document.getElementById("poly-console").innerHTML = `
+                    <span style="color: var(--accent-cyan); font-weight: 700;">[DYNAMIC DISPATCH]</span> person-&gt;bookingMessage("Calangute Beach Villa", "Aarav Sharma");<br>
+                    ↳ 1. Dereference pointer <code>${{objPtr}}</code> ➔ read <code>__vptr = ${{vptr.split(" ")[0]}}</code><br>
+                    ↳ 2. Index slot 1 in vtable ➔ Jump to Function <code>${{fnPtr}}</code><br>
+                    ↳ 3. Result: "${{text}}"<br>
+                    <span style="color: var(--accent-green); font-weight: 600;">✔ Dynamic virtual dispatch executed in O(1) single-pointer offset.</span>
+                `;
+            }};
+
+            // Strategy Slider
+            const stratSlider = document.getElementById("strat-slider");
+            const stratNightsLabel = document.getElementById("strat-nights-label");
+            const stratActivePill = document.getElementById("strat-active-pill");
+            const stratSimConsole = document.getElementById("strat-sim-console");
+
+            stratSlider.addEventListener("input", (e) => {{
+                const nights = Number(e.target.value);
+                stratNightsLabel.textContent = `${{nights}} ${{nights === 1 ? 'Night' : 'Nights'}}`;
+                const rate = 3500;
+                const subtotal = rate * nights;
+
+                if (nights < 5) {{
+                    stratActivePill.textContent = "StandardPricingStrategy";
+                    stratActivePill.style.color = "var(--accent-green)";
+                    stratSimConsole.innerHTML = `Duration = ${{nights}} nights (&lt; 5 threshold) ➔ <strong>StandardPricingStrategy</strong> dynamically invoked.<br>↳ Linear Computation: ₹${{rate.toLocaleString()}} × ${{nights}} = <strong>₹${{subtotal.toLocaleString()}}</strong>. Discount = ₹0.`;
+                }} else {{
+                    const discount = (subtotal * 10) / 100;
+                    const total = subtotal - discount;
+                    stratActivePill.textContent = "ExtendedStayPricingStrategy";
+                    stratActivePill.style.color = "var(--accent-terracotta)";
+                    stratSimConsole.innerHTML = `Duration = ${{nights}} nights (≥ 5 threshold) ➔ <strong>ExtendedStayPricingStrategy</strong> dynamically invoked!<br>↳ Base: ₹${{subtotal.toLocaleString()}} | 10% Discount: <strong>-₹${{discount.toLocaleString()}}</strong> | Final Total: <strong>₹${{total.toLocaleString()}}</strong>.`;
+                }}
+            }});
+
+            // -------------------------------------------------------------------
+            // 5. Source-Code Explorer Engine
+            // -------------------------------------------------------------------
+            const codeTable = document.getElementById("code-table");
+            const sourceFileStats = document.getElementById("source-file-stats");
+            const sourceSearchInput = document.getElementById("source-search-input");
+            const toast = document.getElementById("toast-notify");
+
+            function showToast(msg) {{
+                toast.textContent = msg;
+                toast.classList.add("show");
+                setTimeout(() => toast.classList.remove("show"), 2400);
+            }}
+
+            function loadSourceFile(fileName, highlightStart = 0, highlightEnd = 0) {{
+                activeFile = fileName;
+                document.querySelectorAll(".source-file-tab").forEach(tab => {{
+                    tab.classList.toggle("active", tab.dataset.file === fileName);
+                }});
+
+                const sourceObj = window.STAYFINDER_SOURCES ? window.STAYFINDER_SOURCES[fileName] : null;
+                if (!sourceObj) {{
+                    codeTable.innerHTML = `<tr><td style="padding: 24px; color: var(--text-dim);">Source file ${{fileName}} not loaded.</td></tr>`;
+                    return;
+                }}
+
+                sourceFileStats.textContent = `${{fileName}} · ${{sourceObj.lineCount}} lines`;
+                const lines = sourceObj.content.split("\\n");
+                codeTable.innerHTML = "";
+
+                lines.forEach((lineText, idx) => {{
+                    const lineNum = idx + 1;
+                    const tr = document.createElement("tr");
+                    tr.className = "code-row";
+                    tr.id = `line-${{lineNum}}`;
+
+                    const isHighlighted = highlightStart > 0 && lineNum >= highlightStart && lineNum <= highlightEnd;
+                    if (isHighlighted) tr.classList.add("highlighted-line");
+
+                    // Basic C++ syntax coloring
+                    let formatted = lineText
+                        .replace(/&/g, "&amp;")
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;");
+
+                    formatted = formatted
+                        .replace(/\\b(class|struct|public|private|protected|virtual|override|explicit|noexcept|const|delete|default|friend|return|throw|using|namespace|if|else|while|for)\\b/g, '<span class="code-kw">$1</span>')
+                        .replace(/\\b(int|std::string|void|bool|char|sqlite3|size_t)\\b/g, '<span class="code-type">$1</span>')
+                        .replace(/(".*?")/g, '<span class="code-str">$1</span>')
+                        .replace(/(\\/\\/.*$)/g, '<span class="code-com">$1</span>');
+
+                    tr.innerHTML = `
+                        <td class="line-num">${{lineNum}}</td>
+                        <td class="line-content">${{formatted || " "}}</td>
+                    `;
+                    codeTable.appendChild(tr);
+                }});
+
+                if (highlightStart > 0) {{
+                    const targetEl = document.getElementById(`line-${{highlightStart}}`);
+                    if (targetEl) {{
+                        targetEl.scrollIntoView({{ behavior: "smooth", block: "center" }});
+                    }}
+                }}
+            }}
+
+            window.jumpToSource = function(fileName, startLine, endLine) {{
+                document.getElementById("source-explorer").scrollIntoView({{ behavior: "smooth" }});
+                loadSourceFile(fileName, startLine, endLine);
+            }};
+
+            document.querySelectorAll(".source-file-tab").forEach(tab => {{
+                tab.addEventListener("click", () => {{
+                    loadSourceFile(tab.dataset.file);
+                }});
+            }});
+
+            sourceSearchInput.addEventListener("input", (e) => {{
+                const q = e.target.value.toLowerCase().trim();
+                document.querySelectorAll(".code-row").forEach(row => {{
+                    const content = row.querySelector(".line-content").textContent.toLowerCase();
+                    if (!q || content.includes(q)) {{
+                        row.style.display = "";
+                    }} else {{
+                        row.style.display = "none";
+                    }}
+                }});
+            }});
+
+            document.getElementById("btn-copy-code").addEventListener("click", () => {{
+                const sourceObj = window.STAYFINDER_SOURCES ? window.STAYFINDER_SOURCES[activeFile] : null;
+                if (sourceObj && navigator.clipboard) {{
+                    navigator.clipboard.writeText(sourceObj.content).then(() => {{
+                        showToast(`Copied ${{activeFile}} to clipboard!`);
+                    }});
+                }}
+            }});
+
+            loadSourceFile("models.h");
+
+            // -------------------------------------------------------------------
+            // 6. Relationships Matrix Engine
+            // -------------------------------------------------------------------
+            const matrixTbody = document.getElementById("matrix-tbody");
+            matrixData.forEach(row => {{
+                const tr = document.createElement("tr");
+                tr.style.cursor = "pointer";
+
+                function formatBadge(val) {{
+                    if (val.includes("Primary")) return `<span class="matrix-badge primary">${{val}}</span>`;
+                    if (val.includes("Secondary") || val.includes("Derived") || val.includes("Base")) return `<span class="matrix-badge secondary">${{val}}</span>`;
+                    return `<span class="matrix-badge na">${{val}}</span>`;
+                }}
+
+                tr.innerHTML = `
+                    <td style="font-weight: 700; font-family: var(--font-code); color: var(--accent-terracotta);">${{row.class}}</td>
+                    <td>${{formatBadge(row.encap)}}</td>
+                    <td>${{formatBadge(row.abstr)}}</td>
+                    <td>${{formatBadge(row.inher)}}</td>
+                    <td>${{formatBadge(row.rt_poly)}}</td>
+                    <td>${{formatBadge(row.ct_poly)}}</td>
+                    <td>${{formatBadge(row.comp)}}</td>
+                    <td>${{formatBadge(row.raii)}}</td>
+                `;
+
+                tr.addEventListener("click", () => {{
+                    const c = classesData.find(item => item.name === row.class);
+                    if (c) {{
+                        selectClass(c.id);
+                        document.getElementById("inspector").scrollIntoView({{ behavior: "smooth" }});
+                    }}
+                }});
+
+                matrixTbody.appendChild(tr);
+            }});
+
+        }})();
+    </script>
+</body>
+</html>
+"""
+    return html
+
+output_path = r"StayFinder\frontend\oop.html"
+with open(output_path, "w", encoding="utf-8") as f:
+    f.write(build_page())
+
+print(f"Generated {output_path} successfully ({os.path.getsize(output_path)} bytes).")

@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StayFinder — Curated Stays & Boutique Accommodations</title>
+    <meta name="description" content="Discover boutique stays, villas, and heritage homes across India. Instant confirmed reservations with transparent pricing.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏡</text></svg>">
+</head>
+<body>
+
+    <!-- Sticky Navigation Bar -->
+    <header class="navbar" id="top">
+        <div class="container nav-container">
+            <a href="#top" class="logo-group" aria-label="StayFinder Home">
+                <div class="logo-symbol">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                    </svg>
+                </div>
+                <span class="logo-text">StayFinder</span>
+            </a>
+
+            <nav>
+                <ul class="nav-links">
+                    <li><a href="#stays" class="nav-link active">Explore Stays</a></li>
+                    <li><a href="#destinations" class="nav-link">Destinations</a></li>
+                    <li><a href="#book" class="nav-link">Book a Stay</a></li>
+                    <li><a href="#my-bookings" class="nav-link">My Bookings</a></li>
+                    <li>
+                        <a href="oop.html" class="nav-action-btn" title="View C++ System Architecture & Technical Documentation">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+                                <line x1="9" y1="9" x2="15" y2="9"></line>
+                                <line x1="9" y1="13" x2="15" y2="13"></line>
+                                <line x1="9" y1="17" x2="13" y2="17"></line>
+                            </svg>
+                            C++ Architecture
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- Hero Section with Integrated Search -->
+        <section class="hero-section">
+            <div class="container hero-content">
+                <div class="hero-pill">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    Handcrafted Boutique Stays Across India
+                </div>
+                <h1 class="hero-title">Find your place to unwind.</h1>
+                <p class="hero-subtitle">
+                    Discover restorative private villas, heritage havelis, and mountain chalets across India with guaranteed instant availability.
+                </p>
+
+                <!-- Integrated Search Widget -->
+                <form id="hero-search-form" class="search-widget" role="search">
+                    <div class="search-field">
+                        <label for="search-destination">Destination</label>
+                        <input type="text" id="search-destination" placeholder="Where would you like to go?" list="destinations-list" autocomplete="off">
+                        <datalist id="destinations-list">
+                            <option value="Goa">
+                            <option value="Jaipur">
+                            <option value="Manali">
+                            <option value="Mumbai">
+                            <option value="Bengaluru">
+                            <option value="Kochi">
+                            <option value="Delhi">
+                        </datalist>
+                    </div>
+
+                    <div class="search-field">
+                        <label for="search-check-in">Check-in</label>
+                        <input type="date" id="search-check-in">
+                    </div>
+
+                    <div class="search-field">
+                        <label for="search-check-out">Check-out</label>
+                        <input type="date" id="search-check-out">
+                    </div>
+
+                    <div class="search-field">
+                        <label for="search-guests">Travelers</label>
+                        <select id="search-guests">
+                            <option value="1">1 Guest</option>
+                            <option value="2" selected>2 Guests</option>
+                            <option value="3">3 Guests</option>
+                            <option value="4">4 Guests</option>
+                            <option value="6">6 Guests</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="search-submit-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        Search Stays
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Featured Destinations -->
+        <section id="destinations" class="destinations-section">
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-kicker">Destinations</span>
+                        <h2>Explore by region</h2>
+                        <p class="section-desc">From tranquil Himalayan valleys to breezy coastal sanctuaries.</p>
+                    </div>
+                </div>
+
+                <div class="destinations-grid">
+                    <div class="destination-card" data-city="Goa">
+                        <img src="images/dest-goa.jpg" alt="Goa coastline" loading="lazy">
+                        <div class="dest-info">
+                            <h3 class="dest-name">Goa</h3>
+                            <span class="dest-tag">Beachside Villas</span>
+                        </div>
+                    </div>
+
+                    <div class="destination-card" data-city="Jaipur">
+                        <img src="images/dest-jaipur.jpg" alt="Jaipur royal architecture" loading="lazy">
+                        <div class="dest-info">
+                            <h3 class="dest-name">Jaipur</h3>
+                            <span class="dest-tag">Royal Havelis</span>
+                        </div>
+                    </div>
+
+                    <div class="destination-card" data-city="Manali">
+                        <img src="images/dest-manali.jpg" alt="Manali snow peaks" loading="lazy">
+                        <div class="dest-info">
+                            <h3 class="dest-name">Manali</h3>
+                            <span class="dest-tag">Alpine Chalets</span>
+                        </div>
+                    </div>
+
+                    <div class="destination-card" data-city="Mumbai">
+                        <img src="images/dest-mumbai.jpg" alt="Mumbai marine drive" loading="lazy">
+                        <div class="dest-info">
+                            <h3 class="dest-name">Mumbai</h3>
+                            <span class="dest-tag">Sea-Facing Flats</span>
+                        </div>
+                    </div>
+
+                    <div class="destination-card" data-city="Bengaluru">
+                        <img src="images/dest-bengaluru.jpg" alt="Bengaluru gardens" loading="lazy">
+                        <div class="dest-info">
+                            <h3 class="dest-name">Bengaluru</h3>
+                            <span class="dest-tag">Garden Cottages</span>
+                        </div>
+                    </div>
+
+                    <div class="destination-card" data-city="Kochi">
+                        <img src="images/dest-kochi.jpg" alt="Fort Kochi backwaters" loading="lazy">
+                        <div class="dest-info">
+                            <h3 class="dest-name">Kochi</h3>
+                            <span class="dest-tag">Heritage Homestays</span>
+                        </div>
+                    </div>
+
+                    <div class="destination-card" data-city="Delhi">
+                        <img src="images/dest-delhi.jpg" alt="Delhi monuments" loading="lazy">
+                        <div class="dest-info">
+                            <h3 class="dest-name">Delhi</h3>
+                            <span class="dest-tag">Urban Studios</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stays Inventory & Filtering -->
+        <section id="stays" class="stays-section">
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-kicker">Curated Inventory</span>
+                        <h2 id="inventory-heading">Available accommodations</h2>
+                        <p id="inventory-subheading" class="section-desc">Showing verified accommodations across India.</p>
+                    </div>
+                </div>
+
+                <!-- Interactive Filters -->
+                <div class="filter-bar">
+                    <div class="city-pills" role="tablist" aria-label="Filter by destination">
+                        <button type="button" class="city-pill active" data-city="">All Stays</button>
+                        <button type="button" class="city-pill" data-city="Goa">Goa</button>
+                        <button type="button" class="city-pill" data-city="Jaipur">Jaipur</button>
+                        <button type="button" class="city-pill" data-city="Manali">Manali</button>
+                        <button type="button" class="city-pill" data-city="Mumbai">Mumbai</button>
+                        <button type="button" class="city-pill" data-city="Delhi">Delhi</button>
+                        <button type="button" class="city-pill" data-city="Bengaluru">Bengaluru</button>
+                        <button type="button" class="city-pill" data-city="Kochi">Kochi</button>
+                    </div>
+
+                    <div class="filter-controls">
+                        <select id="filter-sort" class="select-control" aria-label="Sort stays">
+                            <option value="recommended">Featured First</option>
+                            <option value="price-asc">Price: Low to High</option>
+                            <option value="price-desc">Price: High to Low</option>
+                            <option value="capacity-desc">Capacity: Highest First</option>
+                        </select>
+
+                        <select id="filter-guests" class="select-control" aria-label="Filter by minimum guests">
+                            <option value="0">Any Capacity</option>
+                            <option value="2">2+ Guests</option>
+                            <option value="4">4+ Guests</option>
+                            <option value="6">6 Guests</option>
+                        </select>
+
+                        <button type="button" id="btn-reset-filters" class="reset-filter-btn">Reset</button>
+                    </div>
+                </div>
+
+                <!-- Dynamic Property Grid -->
+                <div id="property-grid" class="property-grid" aria-live="polite">
+                    <!-- Cards populated via script.js -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Detailed Check-in / Check-out Booking Interface -->
+        <section id="book" class="booking-section">
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-kicker">Instant Confirmation</span>
+                        <h2>Reserve your stay</h2>
+                        <p class="section-desc">Select your dates to verify real-time availability and calculate your guaranteed stay total.</p>
+                    </div>
+                </div>
+
+                <div class="booking-panel-layout">
+                    <!-- Left: Interactive Booking Form -->
+                    <div class="booking-card">
+                        <div class="booking-card-header">
+                            <h3>Reservation details</h3>
+                            <p>Choose dates and guest details to secure your reservation.</p>
+                        </div>
+
+                        <div id="booking-alert" class="alert-box alert-error" style="display: none;" hidden></div>
+
+                        <form id="booking-form" novalidate>
+                            <div class="form-group">
+                                <label for="property-selector" class="form-label">Accommodation</label>
+                                <select id="property-selector" class="form-select" required>
+                                    <option value="" disabled selected>Choose a property...</option>
+                                    <!-- Populated dynamically -->
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="date-inputs-row">
+                                    <div>
+                                        <label for="check-in-date" class="form-label">Arrival date (Check-in)</label>
+                                        <input type="date" id="check-in-date" class="form-input" required>
+                                    </div>
+                                    <div>
+                                        <label for="check-out-date" class="form-label">Departure date (Check-out)</label>
+                                        <input type="date" id="check-out-date" class="form-input" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Number of travelers</label>
+                                <div class="guest-counter-widget">
+                                    <span>Guests</span>
+                                    <div class="guest-counter-controls">
+                                        <button type="button" id="btn-guest-minus" class="counter-btn" aria-label="Decrease guests" disabled>−</button>
+                                        <span id="guest-count-display" class="counter-display">1</span>
+                                        <button type="button" id="btn-guest-plus" class="counter-btn" aria-label="Increase guests">+</button>
+                                    </div>
+                                </div>
+                                <small id="capacity-hint" class="muted" style="font-size: 0.78rem; display: block; margin-top: 4px;">Select a property to view guest limits.</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="guest-name" class="form-label">Primary traveler name</label>
+                                <input type="text" id="guest-name" class="form-input" placeholder="e.g. Arjun Sharma" maxlength="80" autocomplete="name" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="guest-email" class="form-label">Confirmation email</label>
+                                <input type="email" id="guest-email" class="form-input" placeholder="e.g. arjun@example.com" maxlength="120" autocomplete="email" required>
+                            </div>
+
+                            <button type="submit" id="btn-submit-booking" class="submit-booking-btn">
+                                Confirm Reservation
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Right Column: Swappable State (Price Summary OR Confirmed Certificate) -->
+                    <div class="booking-right-pane">
+                        <!-- Active Estimate Breakdown Card -->
+                        <div id="summary-card" class="summary-card">
+                            <div class="selected-property-preview">
+                                <img id="summary-prop-thumb" src="images/delhi-studio.jpg" alt="Selected stay thumbnail" class="preview-thumb">
+                                <div class="preview-details">
+                                    <h4 id="summary-prop-name">Select a stay</h4>
+                                    <p id="summary-prop-city" class="muted">Explore stays above</p>
+                                    <p id="summary-prop-rate" style="font-weight: 700; color: var(--accent-terracotta); margin-top: 4px;">—</p>
+                                </div>
+                            </div>
+
+                            <ul class="breakdown-list">
+                                <li class="breakdown-row">
+                                    <span id="breakdown-rate-calc">Nightly rate × 0 nights</span>
+                                    <span id="breakdown-rate-subtotal">₹0</span>
+                                </li>
+                                <li id="row-discount" class="breakdown-row discount-row" hidden>
+                                    <span id="breakdown-discount-label">Extended Stay Discount (10%)</span>
+                                    <span id="breakdown-discount-amount">−₹0</span>
+                                </li>
+                                <li class="breakdown-row">
+                                    <span>Taxes & Fees</span>
+                                    <span style="color: var(--status-success); font-weight: 600;">Included (No extra fees)</span>
+                                </li>
+                                <li class="breakdown-row total-row">
+                                    <span>Estimated Total</span>
+                                    <span id="breakdown-final-total">₹0</span>
+                                </li>
+                            </ul>
+
+                            <div class="pricing-badge-note">
+                                <strong>Best Rate Guarantee:</strong>
+                                Locked-in pricing with instant calendar verification and zero surprise booking charges.
+                            </div>
+                        </div>
+
+                        <!-- Confirmed Certificate Card (Cleanly replaces Summary Card on success, NO OVERLAP) -->
+                        <div id="booking-confirmation-panel" class="confirmation-card" hidden>
+                            <div class="confirmation-header">
+                                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                </svg>
+                                <div>
+                                    <h3>Reservation Confirmed!</h3>
+                                    <p id="confirm-headline" style="color: var(--status-success); font-weight: 600; font-size: 0.95rem;"></p>
+                                </div>
+                            </div>
+
+                            <div class="details-grid">
+                                <div class="detail-item">
+                                    <dt>Booking Ref</dt>
+                                    <dd id="confirm-id">—</dd>
+                                </div>
+                                <div class="detail-item">
+                                    <dt>Accommodation</dt>
+                                    <dd id="confirm-property">—</dd>
+                                </div>
+                                <div class="detail-item">
+                                    <dt>Stay Dates</dt>
+                                    <dd id="confirm-dates">—</dd>
+                                </div>
+                                <div class="detail-item">
+                                    <dt>Primary Guest</dt>
+                                    <dd id="confirm-guest">—</dd>
+                                </div>
+                                <div class="detail-item">
+                                    <dt>Confirmed Total</dt>
+                                    <dd id="confirm-price" style="color: var(--status-success); font-size: 1.15rem;">—</dd>
+                                </div>
+                                <div class="detail-item">
+                                    <dt>Booking Status</dt>
+                                    <dd><span class="status-badge confirmed">CONFIRMED</span></dd>
+                                </div>
+                            </div>
+
+                            <div class="stakeholder-messages">
+                                <h5>Reservation Messages & Notifications</h5>
+                                <ul id="confirm-messages-list"></ul>
+                            </div>
+
+                            <button type="button" id="btn-book-another" class="btn-primary-sm" style="width: 100%; margin-top: 18px; padding: 12px; font-size: 0.95rem;">
+                                Book Another Stay
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- My Bookings Section (Lifecycle Management & Cancellation) -->
+        <section id="my-bookings" class="my-bookings-section">
+            <div class="container">
+                <div class="section-header bookings-header">
+                    <div class="section-title-wrap">
+                        <span class="section-kicker">Booking Management</span>
+                        <div class="bookings-title-row">
+                            <h2>Existing reservations</h2>
+                            <span id="bookings-total-badge" class="bookings-count-pill" title="Total reservations recorded in database">0 Reservations</span>
+                        </div>
+                        <p class="section-desc">Review active bookings, filter by status, or cancel reservations with immediate calendar date release.</p>
+                    </div>
+                </div>
+
+                <!-- Status Filter Tabs & Search Controls -->
+                <div class="bookings-control-bar">
+                    <div class="booking-status-tabs" role="tablist" aria-label="Filter reservations by status">
+                        <button type="button" class="booking-status-tab active" data-status="all" role="tab" aria-selected="true" id="tab-all">
+                            <span>All</span>
+                            <span class="status-tab-count" id="count-all">0</span>
+                        </button>
+                        <button type="button" class="booking-status-tab" data-status="CONFIRMED" role="tab" aria-selected="false" id="tab-confirmed">
+                            <span>Confirmed</span>
+                            <span class="status-tab-count" id="count-confirmed">0</span>
+                        </button>
+                        <button type="button" class="booking-status-tab" data-status="CANCELLED" role="tab" aria-selected="false" id="tab-cancelled">
+                            <span>Cancelled</span>
+                            <span class="status-tab-count" id="count-cancelled">0</span>
+                        </button>
+                    </div>
+
+                    <div class="bookings-search-box">
+                        <svg class="search-box-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" id="bookings-search-input" class="bookings-search-input" placeholder="Search property, city, guest, or Ref #..." aria-label="Search reservations">
+                        <button type="button" id="bookings-search-clear" class="bookings-search-clear" title="Clear search" aria-label="Clear search" hidden>×</button>
+                    </div>
+                </div>
+
+                <!-- Dynamic Status / Feedback Alert (e.g. on cancellation) -->
+                <div id="bookings-action-alert" class="alert-box alert-success" hidden role="alert"></div>
+
+                <!-- Reservations Cards Grid -->
+                <div id="bookings-cards-grid" class="bookings-cards-grid" aria-live="polite">
+                    <!-- Populated dynamically via script.js -->
+                </div>
+
+                <!-- Empty State -->
+                <div id="bookings-empty-state" class="bookings-empty-state" hidden>
+                    <div class="empty-icon-wrap">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="16" y1="2" x2="16" y2="6"></line>
+                            <line x1="8" y1="2" x2="8" y2="6"></line>
+                            <line x1="3" y1="10" x2="21" y2="10"></line>
+                        </svg>
+                    </div>
+                    <h3 id="bookings-empty-title">No reservations found</h3>
+                    <p id="bookings-empty-desc">You do not have any reservations yet. Complete a booking above to see it appear here.</p>
+                    <button type="button" id="btn-bookings-reset" class="btn-secondary-sm" hidden>Reset Filters</button>
+                </div>
+
+                <!-- Collapsible Expand/Collapse Footer -->
+                <div id="bookings-expand-wrap" class="bookings-expand-wrap" hidden>
+                    <p id="bookings-visible-hint" class="bookings-visible-hint">Showing 4 of 25 reservations</p>
+                    <button type="button" id="btn-toggle-bookings-expand" class="btn-toggle-expand">
+                        <span id="btn-toggle-expand-text">View All Reservations</span>
+                        <svg id="btn-toggle-expand-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Values / Why StayFinder -->
+        <section class="values-section">
+            <div class="container">
+                <div class="section-header">
+                    <div class="section-title-wrap">
+                        <span class="section-kicker">The StayFinder Promise</span>
+                        <h2>Why Book With StayFinder?</h2>
+                        <p class="section-desc">Built with precision engineering to ensure seamless, worry-free travel experiences across India.</p>
+                    </div>
+                </div>
+
+                <div class="values-grid">
+                    <div class="value-card">
+                        <div class="value-icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                        </div>
+                        <h3>Real-Time Instant Availability</h3>
+                        <p>Calendar availability is verified in real-time. Once confirmed, your dates are locked with zero risk of double-booking.</p>
+                    </div>
+
+                    <div class="value-card">
+                        <div class="value-icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                        </div>
+                        <h3>Transparent Upfront Pricing</h3>
+                        <p>No unexpected convenience charges or surprise platform markups at checkout. What you see is exactly what you pay.</p>
+                    </div>
+
+                    <div class="value-card">
+                        <div class="value-icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="16 18 22 12 16 6"></polyline>
+                                <polyline points="8 6 2 12 8 18"></polyline>
+                            </svg>
+                        </div>
+                        <h3>High-Performance Reliability</h3>
+                        <p>Ultra-fast response times and lightweight architecture ensure smooth browsing, instant date updates, and prompt confirmations.</p>
+                    </div>
+
+                    <div class="value-card">
+                        <div class="value-icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                            </svg>
+                        </div>
+                        <h3>Secure & Private Bookings</h3>
+                        <p>Your reservation data is stored securely without third-party tracking, advertising cookies, or intrusive background telemetry.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Property Details Modal Dialog -->
+    <div id="property-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-prop-name">
+        <div class="modal-container">
+            <button type="button" id="modal-close-btn" class="modal-close-btn" aria-label="Close property details">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+
+            <div class="modal-gallery">
+                <img id="modal-img-primary" src="images/delhi-studio.jpg" alt="Property primary photo">
+                <img id="modal-img-secondary" src="images/delhi-heritage-room.jpg" alt="Property secondary photo">
+            </div>
+
+            <div class="modal-body">
+                <div class="modal-header-info">
+                    <div>
+                        <span id="modal-prop-city" class="card-location">Jaipur, Rajasthan</span>
+                        <h2 id="modal-prop-name" style="margin-top: 4px;">Sunset Heritage Haveli</h2>
+                    </div>
+                    <div style="text-align: right;">
+                        <span id="modal-prop-price" class="card-price-amount" style="color: var(--accent-terracotta);">₹3,200</span>
+                        <span class="card-price-unit" style="display: block;">per night</span>
+                    </div>
+                </div>
+
+                <p id="modal-prop-desc" class="section-desc" style="margin-bottom: 20px;">
+                    Experience authentic royal Rajasthan living with modern boutique comforts.
+                </p>
+
+                <div class="amenity-tags" id="modal-amenity-tags">
+                    <span class="amenity-tag">✓ Air Conditioning</span>
+                    <span class="amenity-tag">✓ Fast Wi-Fi (150 Mbps)</span>
+                    <span class="amenity-tag">✓ Dedicated Workspace</span>
+                    <span class="amenity-tag">✓ Complimentary Breakfast</span>
+                    <span class="amenity-tag">✓ Self Check-in</span>
+                </div>
+
+                <!-- Host Info Card -->
+                <div class="host-profile-card">
+                    <div class="host-avatar" id="modal-host-avatar">R</div>
+                    <div>
+                        <h4 id="modal-host-name">Hosted by Ravi Kumar</h4>
+                        <p id="modal-host-email" class="muted" style="font-size: 0.85rem;">Direct contact: ravi@example.com · Verified Host</p>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button type="button" id="modal-book-now-btn" class="submit-booking-btn" style="margin-top: 0;">
+                        Book This Stay Now
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refined Footer -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <div class="logo-group" style="margin-bottom: 16px;">
+                        <div class="logo-symbol" style="width: 32px; height: 32px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            </svg>
+                        </div>
+                        <span class="logo-text" style="color: #ffffff; font-size: 1.25rem;">StayFinder</span>
+                    </div>
+                    <p style="color: #a69e94; font-size: 0.88rem; line-height: 1.6;">
+                        StayFinder is a curated accommodation marketplace offering boutique stays, heritage havelis, and coastal villas across India with instant verified reservations.
+                    </p>
+                </div>
+
+                <div class="footer-col">
+                    <h4>Explore Stays</h4>
+                    <ul>
+                        <li><a href="#stays">All Accommodations</a></li>
+                        <li><a href="#destinations">Popular Destinations</a></li>
+                        <li><a href="#book">Book a Stay</a></li>
+                        <li><a href="#my-bookings">My Bookings</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-col">
+                    <h4>Developer & System</h4>
+                    <ul>
+                        <li><a href="oop.html#lab-vtable">vtable Dispatch Simulator</a></li>
+                        <li><a href="oop.html#lab-strategy">Strategy Pattern Lab</a></li>
+                        <li><a href="oop.html#lab-concurrency">Concurrency & Overlap Safety</a></li>
+                        <li><a href="oop.html#lab-uml">Interactive UML Inspector</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-col">
+                    <h4>System Architecture</h4>
+                    <p style="color: #a69e94; font-size: 0.85rem; margin-bottom: 10px;">
+                        • Backend: C++17 Core Engine<br>
+                        • Storage: Embedded SQLite 3<br>
+                        • Interface: RESTful HTTP API
+                    </p>
+                    <a href="oop.html" class="nav-action-btn primary" style="font-size: 0.82rem; padding: 6px 14px; margin-top: 8px;">
+                        Open C++ Architecture →
+                    </a>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>© StayFinder Accommodation Marketplace. Built for high-performance reservation management.</p>
+                <a href="oop.html" style="color: #a69e94; text-decoration: underline;">C++ Architecture & Technical Docs →</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

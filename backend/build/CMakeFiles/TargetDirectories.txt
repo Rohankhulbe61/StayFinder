@@ -1,0 +1,3 @@
+C:/Users/Asus/Downloads/StayFinder/StayFinder/backend/build/CMakeFiles/stayfinder.dir
+C:/Users/Asus/Downloads/StayFinder/StayFinder/backend/build/CMakeFiles/edit_cache.dir
+C:/Users/Asus/Downloads/StayFinder/StayFinder/backend/build/CMakeFiles/rebuild_cache.dir
