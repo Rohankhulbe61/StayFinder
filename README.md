@@ -59,7 +59,6 @@ Expected result: **18 PASSED, 0 FAILED**.
 ```
 StayFinder/
 ├── README.md                          Project overview and setup instructions
-├── VIVA_GUIDE.md                      30 Viva questions & answers, diagrams, and explanations
 ├── test_suite.py                      18 automated integration tests for backend & logic
 ├── frontend/                          Web assets served directly by C++ backend
 │   ├── index.html                     Premium marketplace interface (search, cards, booking, reservations)
