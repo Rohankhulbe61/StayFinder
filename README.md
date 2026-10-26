@@ -42,7 +42,7 @@ Starting StayFinder C++17 Backend Server...
 
 ### 3. Open in Browser
 - **Marketplace Web Portal:** [http://localhost:8080](http://localhost:8080)
-- **OOP Architecture & Viva Guide:** [http://localhost:8080/oop.html](http://localhost:8080/oop.html)
+- **OOP Architecture:** [http://localhost:8080/oop.html](http://localhost:8080/oop.html)
 - **API Health:** [http://localhost:8080/api/health](http://localhost:8080/api/health)
 
 ### 4. Run Automated Test Verification
