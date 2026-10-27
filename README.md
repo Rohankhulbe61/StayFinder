@@ -1,4 +1,4 @@
-# StayFinder — Curated Stays & Accommodation Marketplace
+# StayFinder — Curated Stays & Accommodation Marketplace 
 
 **StayFinder** is a full-stack accommodation booking web application and college engineering viva showcase featuring:
 - **C++17 ISO Standard Backend** with object-oriented domain architecture
